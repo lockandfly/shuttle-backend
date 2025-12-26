@@ -1,11 +1,9 @@
 let shuttleModal = null;
 let editingShuttleId = null;
 
-// Toast semplice stile "pro"
 function showToast(message, type = "success") {
     const containerId = "toast-container";
     let container = document.getElementById(containerId);
-
     if (!container) {
         container = document.createElement("div");
         container.id = containerId;
@@ -26,9 +24,7 @@ function showToast(message, type = "success") {
 
     toast.innerHTML = `
         <div class="d-flex">
-            <div class="toast-body">
-                ${message}
-            </div>
+            <div class="toast-body">${message}</div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>
     `;
@@ -36,11 +32,9 @@ function showToast(message, type = "success") {
     container.appendChild(toast);
     const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
     bsToast.show();
-
     toast.addEventListener("hidden.bs.toast", () => toast.remove());
 }
 
-// Esposto globalmente per table.js
 function openShuttleModal(shuttle = null) {
     const modalEl = document.getElementById("shuttleModal");
     if (!shuttleModal) {
@@ -114,26 +108,20 @@ async function handleExportXlsx() {
 
     try {
         const date = document.getElementById("filterDate").value || null;
-        const response = await downloadXlsx(date);
-
-        const blob = await response.blob();
+        const res = await downloadXlsx(date);
+        // For simplicity the backend returns CSV content in JSON; create a blob
+        const blob = new Blob([res.content], { type: "text/csv;charset=utf-8;" });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
-
-        const filename = response.headers.get("Content-Disposition")
-            ?.split("filename=")[1]
-            ?.replace(/"/g, "") || "shuttles.xlsx";
-
         a.href = url;
-        a.download = filename;
+        a.download = res.filename || "shuttles.csv";
         document.body.appendChild(a);
         a.click();
         a.remove();
         window.URL.revokeObjectURL(url);
-
-        showToast("File XLSX esportato.");
+        showToast("File esportato.");
     } catch (err) {
-        showToast(err.message || "Errore durante l'export XLSX.", "error");
+        showToast(err.message || "Errore durante l'export.", "error");
     } finally {
         btn.disabled = false;
         btn.textContent = originalText;
@@ -143,16 +131,13 @@ async function handleExportXlsx() {
 function initThemeToggle() {
     const btn = document.getElementById("btnToggleTheme");
     if (!btn) return;
-
     const applyTheme = (dark) => {
         document.body.classList.toggle("dark-theme", dark);
         btn.textContent = dark ? "Tema chiaro" : "Tema scuro";
     };
-
     const saved = localStorage.getItem("shuttle-theme");
     const isDark = saved === "dark";
     applyTheme(isDark);
-
     btn.addEventListener("click", () => {
         const nowDark = !document.body.classList.contains("dark-theme");
         applyTheme(nowDark);
@@ -160,30 +145,18 @@ function initThemeToggle() {
     });
 }
 
-// Inizializzazione UI
 document.addEventListener("DOMContentLoaded", () => {
-    // Pulsante aggiungi navetta
     const btnAdd = document.getElementById("btnAddShuttle");
-    if (btnAdd) {
-        btnAdd.addEventListener("click", () => openShuttleModal(null));
-    }
+    if (btnAdd) btnAdd.addEventListener("click", () => openShuttleModal(null));
 
-    // Form modale navetta
     const shuttleForm = document.getElementById("shuttleForm");
-    if (shuttleForm) {
-        shuttleForm.addEventListener("submit", handleShuttleFormSubmit);
-    }
+    if (shuttleForm) shuttleForm.addEventListener("submit", handleShuttleFormSubmit);
 
-    // Pulsante export XLSX
     const btnExport = document.getElementById("btnExportXlsx");
-    if (btnExport) {
-        btnExport.addEventListener("click", handleExportXlsx);
-    }
+    if (btnExport) btnExport.addEventListener("click", handleExportXlsx);
 
-    // Tema
     initThemeToggle();
 });
 
-// Rendo alcune funzioni disponibili globalmente
 window.openShuttleModal = openShuttleModal;
 window.showToast = showToast;
