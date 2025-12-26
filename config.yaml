@@ -1,0 +1,4 @@
+settings:
+  excel_file: "shuttle_data.xlsx"
+  time_format: "%H:%M"
+  date_format: "%Y-%m-%d"

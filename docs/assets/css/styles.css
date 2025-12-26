@@ -1,0 +1,32 @@
+body.light-mode {
+    background-color: #f5f5f5;
+    color: #222;
+}
+
+body.light-mode .navbar,
+body.light-mode .card {
+    background-color: #ffffff !important;
+    color: #222 !important;
+}
+
+body.light-mode .table {
+    color: #222;
+}
+
+body.light-mode .table-dark {
+    color: #222;
+    background-color: #f8f9fa;
+}
+
+body.light-mode .table-dark th,
+body.light-mode .table-dark td {
+    border-color: #dee2e6;
+}
+
+.text-light-50 {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+body.light-mode .text-light-50 {
+    color: rgba(0, 0, 0, 0.6);
+}
