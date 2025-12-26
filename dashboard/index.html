@@ -20,16 +20,26 @@
 
         /* FIX DEFINITIVO PER GRAFICI TROPPO GRANDI */
         .chart-wrapper {
-            height: 300px;
-            max-height: 300px;
+            height: 280px;
+            max-height: 280px;
             position: relative;
+        }
+
+        /* MOBILE OPTIMIZATION */
+        @media (max-width: 768px) {
+            .chart-wrapper {
+                height: 220px;
+                max-height: 220px;
+            }
+            h5 { font-size: 1rem; }
+            .navbar-brand { font-size: 1rem; }
         }
     </style>
 </head>
 <body class="dark-theme">
 
 <nav class="navbar navbar-dark px-3">
-    <span class="navbar-brand mb-0 h1"><i class="bi bi-bus-front-fill"></i> Lock&Fly Shuttle Dashboard</span>
+    <span class="navbar-brand mb-0 h1"><i class="bi bi-bus-front-fill"></i> Lock&Fly Dashboard</span>
     <button id="btnToggleTheme" class="btn btn-outline-light">Tema chiaro</button>
 </nav>
 
@@ -37,35 +47,37 @@
 
     <div class="card p-3 mb-4">
         <div class="row g-3 align-items-end">
-            <div class="col-md-3">
-                <label class="form-label">Filtra per data</label>
+            <div class="col-md-3 col-6">
+                <label class="form-label">Data</label>
                 <input type="text" id="filterDate" class="form-control" placeholder="gg/mm/aaaa">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-3 col-6">
                 <button id="btnFilter" class="btn btn-primary w-100"><i class="bi bi-search"></i> Filtra</button>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-3 col-6">
                 <button id="btnClearFilter" class="btn btn-secondary w-100"><i class="bi bi-x-circle"></i> Pulisci</button>
             </div>
-            <div class="col-md-3">
-                <button id="btnAddShuttle" class="btn btn-success w-100"><i class="bi bi-plus-circle"></i> Aggiungi navetta</button>
+            <div class="col-md-3 col-6">
+                <button id="btnAddShuttle" class="btn btn-success w-100"><i class="bi bi-plus-circle"></i> Aggiungi</button>
             </div>
         </div>
     </div>
 
     <div class="card p-3 mb-4">
         <h5 class="mb-3">Lista navette</h5>
-        <table id="shuttlesTable" class="table table-dark table-striped" style="width:100%">
-            <thead>
-                <tr><th>Id</th><th>Data</th><th>Ora</th><th>Destinazione</th><th>Azioni</th></tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+        <div class="table-responsive">
+            <table id="shuttlesTable" class="table table-dark table-striped" style="width:100%">
+                <thead>
+                    <tr><th>Id</th><th>Data</th><th>Ora</th><th>Destinazione</th><th>Azioni</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
         <div class="text-end mt-2"><small id="lastUpdate" class="text-secondary"></small></div>
     </div>
 
     <div class="row g-4">
-        <div class="col-md-6">
+        <div class="col-md-6 col-12">
             <div class="card p-3">
                 <h5>Navette per giorno</h5>
                 <div class="chart-wrapper">
@@ -74,7 +86,7 @@
             </div>
         </div>
 
-        <div class="col-md-6">
+        <div class="col-md-6 col-12">
             <div class="card p-3">
                 <h5>Navette per destinazione</h5>
                 <div class="chart-wrapper">
@@ -94,7 +106,7 @@
   <div class="modal-dialog">
     <div class="modal-content bg-dark text-light">
       <div class="modal-header">
-        <h5 class="modal-title">Nuova navetta</h5>
+        <h5 class="modal-title">Navetta</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <form id="shuttleForm">
