@@ -1,8 +1,8 @@
+// API base - aggiorna se necessario
 const API_BASE_URL = "https://glowing-goggles-x57xpr7p7pxp3vvg5-8000.app.github.dev";
 
 async function apiRequest(method, path, params = null) {
     const url = API_BASE_URL + path;
-
     const options = {
         method,
         headers: {
@@ -20,17 +20,26 @@ async function apiRequest(method, path, params = null) {
                 }
             });
         }
-        const response = await fetch(fullUrl.toString(), options);
-        return response.json();
+        const res = await fetch(fullUrl.toString(), { method, headers: { "Accept": "application/json" } });
+        if (!res.ok) throw new Error(`API error ${res.status}`);
+        return res.json();
     }
 
-    // POST e PUT → body JSON
+    // POST / PUT -> JSON body
     if (method === "POST" || method === "PUT") {
         options.body = JSON.stringify(params || {});
     }
 
-    const response = await fetch(url, options);
-    return response.json();
+    const res = await fetch(url, options);
+    if (!res.ok) {
+        let msg = `API error ${res.status}`;
+        try {
+            const j = await res.json();
+            if (j && j.detail) msg = j.detail;
+        } catch (_) {}
+        throw new Error(msg);
+    }
+    return res.json();
 }
 
 async function fetchShuttles(date = null) {
@@ -52,5 +61,7 @@ async function deleteShuttleById(id) {
 async function downloadXlsx(date = null) {
     const url = new URL(API_BASE_URL + "/report/xlsx");
     if (date) url.searchParams.append("date", date);
-    return fetch(url.toString());
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error(`Export error ${res.status}`);
+    return res.json();
 }
