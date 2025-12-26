@@ -13,7 +13,7 @@ function initCharts() {
                 datasets: [{
                     label: "Navette per giorno",
                     data: [],
-                    backgroundColor: "rgba(54,162,235,0.6)",
+                    backgroundColor: "rgba(54,162,235,0.7)",
                     borderColor: "rgba(54,162,235,1)",
                     borderWidth: 1,
                     borderRadius: 4
@@ -21,7 +21,8 @@ function initCharts() {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,   // NECESSARIO PER ALTEZZA FISSA
+                maintainAspectRatio: false,
+                animation: { duration: 300 },
                 scales: {
                     y: {
                         beginAtZero: true,
@@ -41,14 +42,18 @@ function initCharts() {
                 datasets: [{
                     label: "Navette per destinazione",
                     data: [],
-                    backgroundColor: ["#00b894","#0984e3","#fdcb6e","#d63031","#6c5ce7","#e17055"],
+                    backgroundColor: [
+                        "#00b894","#0984e3","#fdcb6e",
+                        "#d63031","#6c5ce7","#e17055"
+                    ],
                     borderWidth: 0,
                     borderRadius: 4
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,   // NECESSARIO PER ALTEZZA FISSA
+                maintainAspectRatio: false,
+                animation: { duration: 300 },
                 scales: {
                     y: {
                         beginAtZero: true,
