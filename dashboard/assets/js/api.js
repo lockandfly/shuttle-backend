@@ -1,47 +1,85 @@
+// API base
 const API_BASE_URL = "https://glowing-goggles-x57xpr7p7pxp3vvg5-8000.app.github.dev";
 
-async function apiGet(path, params = {}) {
+// --- Helper generico per le chiamate API ---
+async function apiRequest(method, path, params = null) {
     const url = new URL(API_BASE_URL + path);
-    Object.entries(params).forEach(([k, v]) => v && url.searchParams.append(k, v));
 
-    const res = await fetch(url);
-    return await res.json();
+    // Per GET/DELETE mettiamo i parametri in query string
+    if ((method === "GET" || method === "DELETE") && params) {
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== null && value !== undefined && value !== "") {
+                url.searchParams.append(key, value);
+            }
+        });
+    }
+
+    const options = {
+        method,
+        headers: {
+            "Accept": "application/json"
+        }
+    };
+
+    // Per POST/PUT usiamo la query string (come nel backend attuale)
+    if ((method === "POST" || method === "PUT") && params) {
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== null && value !== undefined && value !== "") {
+                url.searchParams.append(key, value);
+            }
+        });
+    }
+
+    const response = await fetch(url.toString());
+
+    if (!response.ok) {
+        let message = `Errore API (${response.status})`;
+        try {
+            const data = await response.json();
+            if (data && data.error) message = data.error;
+        } catch (_) {}
+        throw new Error(message);
+    }
+
+    // In caso di XLSX o altri formati, gestiamo fuori
+    const contentType = response.headers.get("Content-Type") || "";
+    if (!contentType.includes("application/json")) {
+        return response;
+    }
+
+    return response.json();
 }
 
-async function apiPost(path, params = {}) {
-    const url = new URL(API_BASE_URL + path);
-    Object.entries(params).forEach(([k, v]) => v && url.searchParams.append(k, v));
-
-    const res = await fetch(url, { method: "POST" });
-    return await res.json();
-}
-
-async function apiPut(path, params = {}) {
-    const url = new URL(API_BASE_URL + path);
-    Object.entries(params).forEach(([k, v]) => v && url.searchParams.append(k, v));
-
-    const res = await fetch(url, { method: "PUT" });
-    return await res.json();
-}
-
-async function apiDelete(path) {
-    const url = new URL(API_BASE_URL + path);
-    const res = await fetch(url, { method: "DELETE" });
-    return await res.json();
-}
+// --- Funzioni specifiche ---
 
 async function fetchShuttles(date = null) {
-    return await apiGet("/shuttles", date ? { date } : {});
+    return apiRequest("GET", "/shuttles", date ? { date } : null);
 }
 
 async function createShuttle(date, time, destination) {
-    return await apiPost("/shuttles", { date, time, destination });
+    return apiRequest("POST", "/shuttles", { date, time, destination });
 }
 
 async function updateShuttle(id, date, time, destination) {
-    return await apiPut(`/shuttles/${id}`, { date, time, destination });
+    const params = {};
+    if (date) params.date = date;
+    if (time) params.time = time;
+    if (destination) params.destination = destination;
+
+    return apiRequest("PUT", `/shuttles/${id}`, params);
 }
 
 async function deleteShuttleById(id) {
-    return await apiDelete(`/shuttles/${id}`);
+    return apiRequest("DELETE", `/shuttles/${id}`);
+}
+
+async function downloadXlsx(date = null) {
+    const url = new URL(API_BASE_URL + "/report/xlsx");
+    if (date) url.searchParams.append("date", date);
+
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+        throw new Error(`Errore export XLSX (${response.status})`);
+    }
+    return response;
 }
