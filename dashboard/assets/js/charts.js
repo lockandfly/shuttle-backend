@@ -1,42 +1,137 @@
-let chartByDay = null;
-let chartByDestination = null;
+let shuttlesPerDayChart = null;
+let shuttlesPerDestinationChart = null;
 
 document.addEventListener("DOMContentLoaded", () => {
     initCharts();
+    refreshCharts();
 });
 
 function initCharts() {
-    chartByDay = new Chart(document.getElementById("chartByDay"), {
-        type: "bar",
-        data: { labels: [], datasets: [{ label: "Navette", data: [], backgroundColor: "rgba(54,162,235,0.7)" }] },
-        options: { scales: { x: { ticks: { color: "#fff" } }, y: { ticks: { color: "#fff" }, beginAtZero: true } } }
-    });
+    const ctxDay = document.getElementById("shuttlesPerDayChart");
+    const ctxDest = document.getElementById("shuttlesPerDestinationChart");
 
-    chartByDestination = new Chart(document.getElementById("chartByDestination"), {
-        type: "pie",
-        data: { labels: [], datasets: [{ data: [], backgroundColor: ["#0d6efd","#6610f2","#6f42c1","#d63384","#dc3545","#fd7e14","#ffc107","#198754","#20c997","#0dcaf0"] }] },
-        options: { plugins: { legend: { labels: { color: "#fff" } } } }
-    });
+    if (ctxDay) {
+        shuttlesPerDayChart = new Chart(ctxDay, {
+            type: "bar",
+            data: {
+                labels: [],
+                datasets: [{
+                    label: "Navette per giorno",
+                    data: [],
+                    backgroundColor: "rgba(54, 162, 235, 0.6)",
+                    borderColor: "rgba(54, 162, 235, 1)",
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        precision: 0,
+                        ticks: { stepSize: 1 }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: true }
+                }
+            }
+        });
+    }
 
-    refreshCharts();
+    if (ctxDest) {
+        shuttlesPerDestinationChart = new Chart(ctxDest, {
+            type: "bar",
+            data: {
+                labels: [],
+                datasets: [{
+                    label: "Navette per destinazione",
+                    data: [],
+                    backgroundColor: [
+                        "#00b894",
+                        "#0984e3",
+                        "#fdcb6e",
+                        "#d63031",
+                        "#6c5ce7",
+                        "#e17055"
+                    ],
+                    borderWidth: 0,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        precision: 0,
+                        ticks: { stepSize: 1 }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: true }
+                }
+            }
+        });
+    }
 }
 
 async function refreshCharts() {
-    const data = await fetchShuttles();
+    try {
+        const shuttles = await fetchShuttles(null);
 
-    const byDay = {};
-    const byDest = {};
+        // Aggregazione per giorno
+        const byDay = {};
+        shuttles.forEach(s => {
+            const d = s.Date || "";
+            if (!d) return;
+            byDay[d] = (byDay[d] || 0) + 1;
+        });
 
-    data.forEach(s => {
-        byDay[s.Date] = (byDay[s.Date] || 0) + 1;
-        byDest[s.Destination] = (byDest[s.Destination] || 0) + 1;
-    });
+        const dayLabels = Object.keys(byDay).sort((a, b) => {
+            // prova a ordinare dd/mm/yyyy
+            const [da, ma, ya] = a.split("/");
+            const [db, mb, yb] = b.split("/");
+            const ta = new Date(`${ya}-${ma}-${da}`).getTime();
+            const tb = new Date(`${yb}-${mb}-${db}`).getTime();
+            return ta - tb;
+        });
+        const dayValues = dayLabels.map(d => byDay[d]);
 
-    chartByDay.data.labels = Object.keys(byDay);
-    chartByDay.data.datasets[0].data = Object.values(byDay);
-    chartByDay.update();
+        if (shuttlesPerDayChart) {
+            shuttlesPerDayChart.data.labels = dayLabels;
+            shuttlesPerDayChart.data.datasets[0].data = dayValues;
+            shuttlesPerDayChart.update();
+        }
 
-    chartByDestination.data.labels = Object.keys(byDest);
-    chartByDestination.data.datasets[0].data = Object.values(byDest);
-    chartByDestination.update();
+        // Aggregazione per destinazione
+        const byDest = {};
+        shuttles.forEach(s => {
+            const dest = (s.Destination || "").trim();
+            if (!dest) return;
+            byDest[dest] = (byDest[dest] || 0) + 1;
+        });
+
+        const destLabels = Object.keys(byDest);
+        const destValues = destLabels.map(d => byDest[d]);
+
+        if (shuttlesPerDestinationChart) {
+            shuttlesPerDestinationChart.data.labels = destLabels;
+            shuttlesPerDestinationChart.data.datasets[0].data = destValues;
+            shuttlesPerDestinationChart.update();
+        }
+
+    } catch (err) {
+        if (typeof showToast === "function") {
+            showToast(err.message || "Errore nel caricamento dei grafici.", "error");
+        }
+    }
 }
+
+// Espongo globalmente
+window.refreshCharts = refreshCharts;
