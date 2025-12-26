@@ -1,88 +1,189 @@
 let shuttleModal = null;
+let editingShuttleId = null;
 
-document.addEventListener("DOMContentLoaded", () => {
-    shuttleModal = new bootstrap.Modal(document.getElementById("shuttleModal"));
-
-    document.getElementById("btnThemeToggle").addEventListener("click", toggleTheme);
-    document.getElementById("btnExportXlsx").addEventListener("click", exportXlsx);
-
-    document.getElementById("btnOpenAddModal").addEventListener("click", () => openShuttleModal());
-    document.getElementById("shuttleForm").addEventListener("submit", handleShuttleFormSubmit);
-});
-
-function toggleTheme() {
-    document.body.classList.toggle("light-mode");
-}
-
+// Toast semplice stile "pro"
 function showToast(message, type = "success") {
-    const container = document.getElementById("toastContainer");
-    const id = "toast-" + Date.now();
+    const containerId = "toast-container";
+    let container = document.getElementById(containerId);
 
-    const bg = type === "success" ? "bg-success" :
-               type === "error" ? "bg-danger" : "bg-secondary";
+    if (!container) {
+        container = document.createElement("div");
+        container.id = containerId;
+        container.style.position = "fixed";
+        container.style.top = "1rem";
+        container.style.right = "1rem";
+        container.style.zIndex = "9999";
+        document.body.appendChild(container);
+    }
 
-    container.insertAdjacentHTML("beforeend", `
-        <div id="${id}" class="toast text-white ${bg} border-0 mb-2" role="alert">
-            <div class="d-flex">
-                <div class="toast-body">${message}</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    const toast = document.createElement("div");
+    toast.className = "toast align-items-center text-bg-" + (type === "error" ? "danger" : "success");
+    toast.role = "alert";
+    toast.ariaLive = "assertive";
+    toast.ariaAtomic = "true";
+    toast.style.minWidth = "220px";
+    toast.style.marginBottom = "0.5rem";
+
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                ${message}
             </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>
-    `);
+    `;
 
-    const toast = new bootstrap.Toast(document.getElementById(id), { delay: 3000 });
-    toast.show();
+    container.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+    bsToast.show();
+
+    toast.addEventListener("hidden.bs.toast", () => toast.remove());
 }
 
+// Esposto globalmente per table.js
 function openShuttleModal(shuttle = null) {
-    document.getElementById("formError").classList.add("d-none");
+    const modalEl = document.getElementById("shuttleModal");
+    if (!shuttleModal) {
+        shuttleModal = new bootstrap.Modal(modalEl);
+    }
 
-    document.getElementById("shuttleModalTitle").textContent =
-        shuttle ? "Modifica navetta" : "Nuova navetta";
+    const titleEl = modalEl.querySelector(".modal-title");
+    const dateInput = document.getElementById("shuttleDate");
+    const timeInput = document.getElementById("shuttleTime");
+    const destInput = document.getElementById("shuttleDestination");
 
-    document.getElementById("shuttleId").value = shuttle?.Id || "";
-    document.getElementById("shuttleDate").value = shuttle?.Date || "";
-    document.getElementById("shuttleTime").value = shuttle?.Time || "";
-    document.getElementById("shuttleDestination").value = shuttle?.Destination || "";
+    if (shuttle) {
+        editingShuttleId = shuttle.Id;
+        titleEl.textContent = "Modifica navetta";
+        dateInput.value = shuttle.Date || "";
+        timeInput.value = shuttle.Time || "";
+        destInput.value = shuttle.Destination || "";
+    } else {
+        editingShuttleId = null;
+        titleEl.textContent = "Nuova navetta";
+        dateInput.value = "";
+        timeInput.value = "";
+        destInput.value = "";
+    }
 
     shuttleModal.show();
 }
 
-async function handleShuttleFormSubmit(e) {
-    e.preventDefault();
+async function handleShuttleFormSubmit(event) {
+    event.preventDefault();
 
-    const id = document.getElementById("shuttleId").value;
-    const date = document.getElementById("shuttleDate").value;
-    const time = document.getElementById("shuttleTime").value;
-    const destination = document.getElementById("shuttleDestination").value;
-
-    const errorEl = document.getElementById("formError");
+    const date = document.getElementById("shuttleDate").value.trim();
+    const time = document.getElementById("shuttleTime").value.trim();
+    const destination = document.getElementById("shuttleDestination").value.trim();
 
     if (!date || !time || !destination) {
-        errorEl.textContent = "Compila tutti i campi.";
-        errorEl.classList.remove("d-none");
+        showToast("Compila tutti i campi.", "error");
         return;
     }
 
-    let result = id
-        ? await updateShuttle(id, date, time, destination)
-        : await createShuttle(date, time, destination);
+    const submitBtn = document.getElementById("btnSaveShuttle");
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Salvataggio...";
 
-    if (result.error) {
-        errorEl.textContent = result.error;
-        errorEl.classList.remove("d-none");
-        return;
+    try {
+        if (editingShuttleId) {
+            await updateShuttle(editingShuttleId, date, time, destination);
+            showToast("Navetta aggiornata.");
+        } else {
+            await createShuttle(date, time, destination);
+            showToast("Navetta aggiunta.");
+        }
+
+        shuttleModal.hide();
+        await loadShuttles();
+        await refreshCharts();
+    } catch (err) {
+        showToast(err.message || "Errore durante il salvataggio.", "error");
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    }
+}
+
+async function handleExportXlsx() {
+    const btn = document.getElementById("btnExportXlsx");
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Esportazione...";
+
+    try {
+        const date = document.getElementById("filterDate").value || null;
+        const response = await downloadXlsx(date);
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+
+        const filename = response.headers.get("Content-Disposition")
+            ?.split("filename=")[1]
+            ?.replace(/"/g, "") || "shuttles.xlsx";
+
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+
+        showToast("File XLSX esportato.");
+    } catch (err) {
+        showToast(err.message || "Errore durante l'export XLSX.", "error");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+}
+
+function initThemeToggle() {
+    const btn = document.getElementById("btnToggleTheme");
+    if (!btn) return;
+
+    const applyTheme = (dark) => {
+        document.body.classList.toggle("dark-theme", dark);
+        btn.textContent = dark ? "Tema chiaro" : "Tema scuro";
+    };
+
+    const saved = localStorage.getItem("shuttle-theme");
+    const isDark = saved === "dark";
+    applyTheme(isDark);
+
+    btn.addEventListener("click", () => {
+        const nowDark = !document.body.classList.contains("dark-theme");
+        applyTheme(nowDark);
+        localStorage.setItem("shuttle-theme", nowDark ? "dark" : "light");
+    });
+}
+
+// Inizializzazione UI
+document.addEventListener("DOMContentLoaded", () => {
+    // Pulsante aggiungi navetta
+    const btnAdd = document.getElementById("btnAddShuttle");
+    if (btnAdd) {
+        btnAdd.addEventListener("click", () => openShuttleModal(null));
     }
 
-    shuttleModal.hide();
-    showToast("Navetta salvata.");
-    loadShuttles();
-    refreshCharts();
-}
+    // Form modale navetta
+    const shuttleForm = document.getElementById("shuttleForm");
+    if (shuttleForm) {
+        shuttleForm.addEventListener("submit", handleShuttleFormSubmit);
+    }
 
-function exportXlsx() {
-    const date = document.getElementById("filterDate").value;
-    const url = new URL(API_BASE_URL + "/report/xlsx");
-    if (date) url.searchParams.append("date", date);
-    window.open(url.toString(), "_blank");
-}
+    // Pulsante export XLSX
+    const btnExport = document.getElementById("btnExportXlsx");
+    if (btnExport) {
+        btnExport.addEventListener("click", handleExportXlsx);
+    }
+
+    // Tema
+    initThemeToggle();
+});
+
+// Rendo alcune funzioni disponibili globalmente
+window.openShuttleModal = openShuttleModal;
+window.showToast = showToast;
