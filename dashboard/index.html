@@ -1,17 +1,12 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Lock&Fly – Shuttle Dashboard</title>
 
-    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <!-- Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-
-    <!-- DataTables CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
 
     <style>
@@ -21,158 +16,104 @@
         .table { color: #fff; }
         .modal-content { background-color: #1f1f1f; }
         #toast-container .toast { opacity: 0.95; }
+        .container { max-width: 1100px; }
     </style>
 </head>
-
 <body class="dark-theme">
 
-    <!-- NAVBAR -->
-    <nav class="navbar navbar-dark px-3">
-        <span class="navbar-brand mb-0 h1">
-            <i class="bi bi-bus-front-fill"></i> Lock&Fly Shuttle Dashboard
-        </span>
-        <button id="btnToggleTheme" class="btn btn-outline-light">Tema chiaro</button>
-    </nav>
+<nav class="navbar navbar-dark px-3">
+    <span class="navbar-brand mb-0 h1"><i class="bi bi-bus-front-fill"></i> Lock&Fly Shuttle Dashboard</span>
+    <button id="btnToggleTheme" class="btn btn-outline-light">Tema chiaro</button>
+</nav>
 
-    <div class="container py-4">
-
-        <!-- FILTRI -->
-        <div class="card p-3 mb-4">
-            <div class="row g-3 align-items-end">
-                <div class="col-md-3">
-                    <label class="form-label">Filtra per data</label>
-                    <input type="text" id="filterDate" class="form-control" placeholder="gg/mm/aaaa">
-                </div>
-
-                <div class="col-md-3">
-                    <button id="btnFilter" class="btn btn-primary w-100">
-                        <i class="bi bi-search"></i> Filtra
-                    </button>
-                </div>
-
-                <div class="col-md-3">
-                    <button id="btnClearFilter" class="btn btn-secondary w-100">
-                        <i class="bi bi-x-circle"></i> Pulisci
-                    </button>
-                </div>
-
-                <div class="col-md-3">
-                    <button id="btnAddShuttle" class="btn btn-success w-100">
-                        <i class="bi bi-plus-circle"></i> Aggiungi navetta
-                    </button>
-                </div>
+<div class="container py-4">
+    <div class="card p-3 mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Filtra per data</label>
+                <input type="text" id="filterDate" class="form-control" placeholder="gg/mm/aaaa">
             </div>
-        </div>
-
-        <!-- TABELLA -->
-        <div class="card p-3 mb-4">
-            <h5 class="mb-3">Lista navette</h5>
-            <table id="shuttlesTable" class="table table-dark table-striped" style="width:100%">
-                <thead>
-                    <tr>
-                        <th>Id</th>
-                        <th>Data</th>
-                        <th>Ora</th>
-                        <th>Destinazione</th>
-                        <th>Azioni</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-
-            <div class="text-end mt-2">
-                <small id="lastUpdate" class="text-secondary"></small>
+            <div class="col-md-3">
+                <button id="btnFilter" class="btn btn-primary w-100"><i class="bi bi-search"></i> Filtra</button>
             </div>
-        </div>
-
-        <!-- GRAFICI -->
-        <div class="row g-4">
-            <div class="col-md-6">
-                <div class="card p-3">
-                    <h5>Navette per giorno</h5>
-                    <canvas id="shuttlesPerDayChart" height="200"></canvas>
-                </div>
+            <div class="col-md-3">
+                <button id="btnClearFilter" class="btn btn-secondary w-100"><i class="bi bi-x-circle"></i> Pulisci</button>
             </div>
-
-            <div class="col-md-6">
-                <div class="card p-3">
-                    <h5>Navette per destinazione</h5>
-                    <canvas id="shuttlesPerDestinationChart" height="200"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- EXPORT -->
-        <div class="text-end mt-4">
-            <button id="btnExportXlsx" class="btn btn-warning">
-                <i class="bi bi-file-earmark-excel"></i> Esporta XLSX
-            </button>
-        </div>
-
-    </div>
-
-    <!-- MODALE NAVETTA -->
-    <div class="modal fade" id="shuttleModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content bg-dark text-light">
-                <div class="modal-header">
-                    <h5 class="modal-title">Nuova navetta</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-
-                <form id="shuttleForm">
-                    <div class="modal-body">
-
-                        <div class="mb-3">
-                            <label class="form-label">Data</label>
-                            <input type="text" id="shuttleDate" class="form-control" placeholder="gg/mm/aaaa" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Ora</label>
-                            <input type="text" id="shuttleTime" class="form-control" placeholder="HH:MM" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Destinazione</label>
-                            <input type="text" id="shuttleDestination" class="form-control" required>
-                        </div>
-
-                    </div>
-
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-
-                        <button type="submit" id="btnSaveShuttle" class="btn btn-primary">
-                            Salva
-                        </button>
-                    </div>
-                </form>
-
+            <div class="col-md-3">
+                <button id="btnAddShuttle" class="btn btn-success w-100"><i class="bi bi-plus-circle"></i> Aggiungi navetta</button>
             </div>
         </div>
     </div>
 
-    <!-- JS LIBRARIES (ORDINE CORRETTO) -->
+    <div class="card p-3 mb-4">
+        <h5 class="mb-3">Lista navette</h5>
+        <table id="shuttlesTable" class="table table-dark table-striped" style="width:100%">
+            <thead>
+                <tr><th>Id</th><th>Data</th><th>Ora</th><th>Destinazione</th><th>Azioni</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <div class="text-end mt-2"><small id="lastUpdate" class="text-secondary"></small></div>
+    </div>
 
-    <!-- jQuery FIRST -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card p-3"><h5>Navette per giorno</h5><canvas id="shuttlesPerDayChart" height="200"></canvas></div>
+        </div>
+        <div class="col-md-6">
+            <div class="card p-3"><h5>Navette per destinazione</h5><canvas id="shuttlesPerDestinationChart" height="200"></canvas></div>
+        </div>
+    </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <div class="text-end mt-4">
+        <button id="btnExportXlsx" class="btn btn-warning"><i class="bi bi-file-earmark-excel"></i> Esporta XLSX</button>
+    </div>
+</div>
 
-    <!-- DataTables -->
-    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+<!-- Modal -->
+<div class="modal fade" id="shuttleModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title">Nuova navetta</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="shuttleForm">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Data</label>
+            <input type="text" id="shuttleDate" class="form-control" placeholder="gg/mm/aaaa" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Ora</label>
+            <input type="text" id="shuttleTime" class="form-control" placeholder="HH:MM" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Destinazione</label>
+            <input type="text" id="shuttleDestination" class="form-control" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button type="submit" id="btnSaveShuttle" class="btn btn-primary">Salva</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Scripts (ordine corretto) -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- APP SCRIPTS -->
-    <script src="assets/js/api.js"></script>
-    <script src="assets/js/ui.js"></script>
-    <script src="assets/js/table.js"></script>
-    <script src="assets/js/charts.js"></script>
+<!-- App scripts -->
+<script src="assets/js/api.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/table.js"></script>
+<script src="assets/js/charts.js"></script>
 
 </body>
 </html>
