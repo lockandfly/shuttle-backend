@@ -17,7 +17,6 @@ function formatDate(dateString) {
     // Se è già nel formato gg/mm/aaaa
     if (dateString.includes("/")) return dateString;
 
-    // Altrimenti convertiamo (es. 2025-12-28 → 28/12/2025)
     const d = new Date(dateString);
     if (isNaN(d)) return dateString;
 
@@ -34,7 +33,6 @@ function formatTime(timeString) {
     // Se è già nel formato HH:MM
     if (/^\d{2}:\d{2}$/.test(timeString)) return timeString;
 
-    // Se arriva come "9:5" → "09:05"
     const parts = timeString.split(":");
     if (parts.length !== 2) return timeString;
 
@@ -57,9 +55,10 @@ function initTable() {
             },
 
             {
-                data: "Time",
-                render: function (data) {
-                    return formatTime(data);
+                data: null,
+                render: function (row) {
+                    const t = row.Time || row.time || row.Ora || row.ora;
+                    return formatTime(t);
                 }
             },
 
@@ -69,8 +68,12 @@ function initTable() {
                 data: null,
                 orderable: false,
                 render: () => `
-                    <button class="btn btn-sm btn-outline-light me-1" data-action="edit">Modifica</button>
-                    <button class="btn btn-sm btn-outline-danger" data-action="delete">Elimina</button>
+                    <button class="btn btn-sm btn-outline-light me-1" data-action="edit">
+                        <i class="bi bi-pencil"></i> Modifica
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" data-action="delete">
+                        <i class="bi bi-trash"></i> Elimina
+                    </button>
                 `
             }
         ],
@@ -90,23 +93,43 @@ function initTable() {
 
 async function loadShuttles() {
     const date = document.getElementById("filterDate").value;
-    const data = await fetchShuttles(date || null);
+    try {
+        const data = await fetchShuttles(date || null);
 
-    shuttlesTable.clear();
-    shuttlesTable.rows.add(data);
-    shuttlesTable.draw();
+        shuttlesTable.clear();
+        shuttlesTable.rows.add(data);
+        shuttlesTable.draw();
 
-    document.getElementById("lastUpdate").textContent =
-        `Aggiornato: ${new Date().toLocaleTimeString()}`;
+        const lastUpdateEl = document.getElementById("lastUpdate");
+        if (lastUpdateEl) {
+            lastUpdateEl.textContent =
+                `Aggiornato: ${new Date().toLocaleTimeString()}`;
+        }
+    } catch (err) {
+        showToast(err.message || "Errore nel caricamento delle navette.", "error");
+    }
 }
 
 async function handleDeleteShuttle(shuttle) {
-    if (!confirm(`Eliminare la navetta del ${formatDate(shuttle.Date)} alle ${formatTime(shuttle.Time)}?`)) return;
+    const msg = `Eliminare la navetta del ${formatDate(shuttle.Date)} alle ${formatTime(shuttle.Time)}?`;
+    if (!confirm(msg)) return;
 
-    const res = await deleteShuttleById(shuttle.Id);
-    if (res.error) return showToast(res.error, "error");
+    try {
+        const res = await deleteShuttleById(shuttle.Id);
+        if (res.error) {
+            showToast(res.error, "error");
+            return;
+        }
 
-    showToast("Navetta eliminata.");
-    loadShuttles();
-    refreshCharts();
+        showToast("Navetta eliminata.");
+        await loadShuttles();
+        await refreshCharts();
+    } catch (err) {
+        showToast(err.message || "Errore durante l'eliminazione.", "error");
+    }
 }
+
+// Espongo alcune funzioni globalmente se servono altrove
+window.loadShuttles = loadShuttles;
+window.formatDate = formatDate;
+window.formatTime = formatTime;
