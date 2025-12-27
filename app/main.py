@@ -4,12 +4,18 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List
 
+# ====== IMPORT NUOVO SISTEMA DATABASE ======
+from app.database import Base, engine
+from app.routers import bookings_db
+
+# ====== SISTEMA ATTUALE (CSV) ======
 from shuttle_scheduler import ShuttleScheduler
 from booking_manager import BookingManager
 
+# ====== INIZIALIZZAZIONE FASTAPI ======
 app = FastAPI(title="Lock&Fly Shuttle & Booking API")
 
-# CORS
+# ====== CORS ======
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # puoi restringere in futuro
@@ -18,11 +24,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ====== CREAZIONE TABELLE DATABASE ======
+Base.metadata.create_all(bind=engine)
+
+# ====== INIZIALIZZAZIONE SISTEMA CSV ======
 scheduler = ShuttleScheduler("shuttles.csv")
 booking_manager = BookingManager("bookings.csv")
 
+# ====== INTEGRAZIONE ROUTER DATABASE ======
+app.include_router(bookings_db.router)
 
-# ====== MODELLI NAVETTE ======
+
+# ============================================================
+#                       MODELLI NAVETTE
+# ============================================================
 
 class ShuttleCreate(BaseModel):
     date: str = Field(..., example="28/12/2025")
@@ -36,7 +51,9 @@ class ShuttleUpdate(BaseModel):
     destination: Optional[str] = Field(None, example="porto")
 
 
-# ====== MODELLI PRENOTAZIONI ======
+# ============================================================
+#                     MODELLI PRENOTAZIONI CSV
+# ============================================================
 
 class BookingCreate(BaseModel):
     customer_name: str = Field(..., example="Mario Rossi")
@@ -68,14 +85,18 @@ class BookingUpdate(BaseModel):
     notes: Optional[str] = Field(None)
 
 
-# ====== ROOT ======
+# ============================================================
+#                           ROOT
+# ============================================================
 
 @app.get("/", include_in_schema=False)
 def root():
     return RedirectResponse(url="/docs")
 
 
-# ====== NAVETTE ENDPOINTS ======
+# ============================================================
+#                     NAVETTE (CSV)
+# ============================================================
 
 @app.get("/shuttles", response_model=List[dict])
 def list_shuttles(date: Optional[str] = Query(None, description="Filtro per data dd/mm/YYYY")):
@@ -125,7 +146,9 @@ def export_shuttles_xlsx(date: Optional[str] = Query(None, description="Filtro o
     }
 
 
-# ====== PRENOTAZIONI ENDPOINTS ======
+# ============================================================
+#                   PRENOTAZIONI (CSV)
+# ============================================================
 
 @app.get("/bookings", response_model=List[dict])
 def list_bookings(date: Optional[str] = Query(None, description="Filtra per data arrivo dd/mm/YYYY")):

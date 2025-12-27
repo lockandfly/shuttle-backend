@@ -1,0 +1,22 @@
+{
+  "name": "Shuttle Backend DevContainer",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python3",
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.shellArgs.linux": ["-c", "source /workspaces/shuttle-backend/.venv/bin/activate && bash"]
+      }
+    }
+  },
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": {
+      "label": "FastAPI",
+      "onAutoForward": "openBrowser",
+      "visibility": "public"
+    }
+  }
+}
