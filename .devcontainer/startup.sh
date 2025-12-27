@@ -1,16 +1,30 @@
 #!/bin/bash
 
-echo "[Startup] Attivazione ambiente virtuale..."
+PROJECT_DIR="/workspaces/shuttle-backend"
+VENV_DIR="$PROJECT_DIR/.venv"
 
-if [ ! -d "/workspaces/shuttle-backend/.venv" ]; then
-    python3 -m venv /workspaces/shuttle-backend/.venv
+echo "[Lock&Fly] Avvio automatico ambiente…"
+
+# 1) Crea il venv se non esiste
+if [ ! -d "$VENV_DIR" ]; then
+    echo "[Lock&Fly] Nessun venv trovato. Lo creo ora…"
+    python3 -m venv "$VENV_DIR"
 fi
 
-source /workspaces/shuttle-backend/.venv/bin/activate
+# 2) Attiva il venv
+echo "[Lock&Fly] Attivo il venv…"
+source "$VENV_DIR/bin/activate"
 
-echo "[Startup] Installazione dipendenze..."
-pip install --upgrade pip
-pip install -r /workspaces/shuttle-backend/requirements.txt
+# 3) Installa requirements se mancano
+if [ ! -f "$VENV_DIR/.requirements_installed" ]; then
+    echo "[Lock&Fly] Installo requirements…"
+    pip install --upgrade pip
+    pip install -r "$PROJECT_DIR/requirements.txt"
+    touch "$VENV_DIR/.requirements_installed"
+else
+    echo "[Lock&Fly] Requirements già installati."
+fi
 
-echo "[Startup] Completato. Avvia FastAPI manualmente con:"
-echo "uvicorn app.main:app --host 0.0.0.0 --port=8000 --reload"
+# 4) Avvia FastAPI
+echo "[Lock&Fly] Avvio FastAPI…"
+make start
