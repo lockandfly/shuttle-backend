@@ -1,125 +1,109 @@
 import openpyxl
 from datetime import datetime
-from app.bookings.models import BookingCreate, BookingRead
+from typing import List
+
+from app.bookings.models import BookingRead
 
 
 class MyParkingImporter:
+    """
+    Importer per MyParking.
+    Supporta solo file XLSX.
+    """
+
     COLUMN_MAP = {
-        "reservation_id": ["Codice Prenotazione"],
-        "checkin": ["Ingresso"],
-        "checkout": ["Uscita"],
-        "customer_name": ["Nominativo", "Cliente"],
-        "car_plate": ["Targa"],
-        "price": [
-            "Da pagare", "Da pagare in parcheggio",
-            "Pagato online", "Pagato", "online",
-            "Importo", "Totale", "Totale online"
-        ],
+        "reservation_id": ["codice prenotazione"],
+        "customer_name": ["nominativo"],
+        "checkin": ["ingresso"],
+        "checkout": ["uscita"],
+        "car_plate": ["targa"],
+        "amount": ["da pagare"],
+        "status": ["stato"],
+        "parking_area": ["area sosta"],
+        "customer_email": ["cliente"],  # opzionale
     }
+
+    DATE_FORMATS = [
+        "%d/%m/%Y %H:%M",
+        "%Y-%m-%d %H:%M",
+        "%d/%m/%Y",
+        "%Y-%m-%d",
+    ]
+
+    def parse(self, file_obj, filename: str) -> List[BookingRead]:
+        filename = filename.lower()
+
+        if not filename.endswith(".xlsx"):
+            raise ValueError("MyParking supporta solo file XLSX.")
+
+        rows = self._parse_xlsx(file_obj)
+        return self._convert_rows(rows)
+
+    def _parse_xlsx(self, file_obj):
+        wb = openpyxl.load_workbook(file_obj, data_only=True)
+        ws = wb.active
+        rows = list(ws.values)
+        headers = [self._normalize(h) for h in rows[0]]
+        parsed = []
+        for row in rows[1:]:
+            parsed.append({headers[i]: row[i] for i in range(len(headers))})
+        return parsed
 
     def _normalize(self, value):
         if value is None:
             return ""
-        return str(value).strip().lower().replace("\xa0", " ").replace("\n", " ").replace("\t", " ")
+        return (
+            str(value)
+            .strip()
+            .lower()
+            .replace("\ufeff", "")
+        )
 
-    def _find_column(self, header_row, possible_names):
-        normalized = [self._normalize(cell.value) for cell in header_row]
+    def _convert_rows(self, rows):
+        bookings = []
 
-        # Caso speciale: 'Pagato' + 'online' separati
-        if "pagato" in normalized and "online" in normalized:
-            if "Pagato online" in possible_names or "Pagato" in possible_names:
-                return ("split", normalized.index("pagato"), normalized.index("online"))
+        for row in rows:
+            normalized = {self._normalize(k): v for k, v in row.items()}
 
-        for idx, cell in enumerate(header_row):
-            cell_value = self._normalize(cell.value)
-            for name in possible_names:
-                if cell_value == name.lower():
-                    return idx
+            extracted = {}
+            for key, variants in self.COLUMN_MAP.items():
+                value = None
+                for v in variants:
+                    if v in normalized:
+                        value = normalized[v]
+                        break
+                extracted[key] = value  # opzionali ammessi
 
-        print("Intestazioni trovate:", normalized)
-        raise KeyError(possible_names[0])
+            checkin = self._parse_date(extracted["checkin"])
+            checkout = self._parse_date(extracted["checkout"])
 
-    def _parse_price(self, row, col_price):
-        if isinstance(col_price, tuple) and col_price[0] == "split":
-            _, idx1, idx2 = col_price
-            raw = f"{row[idx1] or ''}{row[idx2] or ''}"
-        else:
-            raw = row[col_price]
-
-        if raw is None:
-            return 0.0
-
-        if isinstance(raw, str):
-            raw = raw.replace("€", "").replace(",", ".").strip()
-
-        try:
-            return float(raw)
-        except:
-            return 0.0
-
-    def _simulate_response(self, bookings):
-        now = datetime.utcnow()
-        return [
-            BookingRead(
-                id=f"imported-{b.portal_reservation_id}",
-                portal=b.portal,
-                portal_reservation_id=b.portal_reservation_id,
-                customer_name=b.customer_name,
-                email=b.email,
-                phone=b.phone,
-                checkin=b.checkin,
-                checkout=b.checkout,
-                car_plate=b.car_plate,
-                price=b.price,
-                created_at=now,
-                updated_at=now,
+            booking = BookingRead(
+                id=f"myparking-{extracted['reservation_id']}",
+                portal="myparking",
+                portal_reservation_id=str(extracted["reservation_id"]),
+                customer_name=str(extracted["customer_name"]),
+                checkin=checkin,
+                checkout=checkout,
+                updated_at=datetime.utcnow(),
+                # campi extra
+                car_plate=extracted.get("car_plate"),
+                customer_email=extracted.get("customer_email"),
+                amount=extracted.get("amount"),
+                status=extracted.get("status"),
+                parking_area=extracted.get("parking_area"),
             )
-            for b in bookings
-        ]
 
-    def parse(self, file):
-        wb = openpyxl.load_workbook(file, data_only=True)
-        sheet = wb.active
-        header = list(sheet[1])
+            bookings.append(booking)
 
-        col = {}
-        for key, variants in self.COLUMN_MAP.items():
-            col[key] = self._find_column(header, variants)
+        return bookings
 
-        raw_bookings = []
+    def _parse_date(self, value):
+        value = str(value).strip()
 
-        for row in sheet.iter_rows(min_row=2, values_only=True):
-            if not any(row):
-                continue
-
+        for fmt in self.DATE_FORMATS:
             try:
-                checkin = row[col["checkin"]]
-                checkout = row[col["checkout"]]
+                return datetime.strptime(value, fmt)
+            except Exception:
+                pass
 
-                if isinstance(checkin, str):
-                    checkin = datetime.strptime(checkin, "%d/%m/%Y %H:%M")
-                if isinstance(checkout, str):
-                    checkout = datetime.strptime(checkout, "%d/%m/%Y %H:%M")
-
-                price = self._parse_price(row, col["price"])
-                car_plate = row[col["car_plate"]] if row[col["car_plate"]] else ""
-
-                booking = BookingCreate(
-                    portal="MyParking",
-                    portal_reservation_id=str(row[col["reservation_id"]]),
-                    customer_name=row[col["customer_name"]],
-                    email="",
-                    phone="",
-                    checkin=checkin,
-                    checkout=checkout,
-                    car_plate=car_plate,
-                    price=price,
-                )
-
-                raw_bookings.append(booking)
-
-            except Exception as e:
-                print("Errore riga:", row)
-                raise e
-
-        return self._simulate_response(raw_bookings)
+        raise ValueError(f"Formato data non riconosciuto: {value}")
