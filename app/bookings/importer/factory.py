@@ -1,16 +1,24 @@
-from app.bookings.importer.parkingmycar import ParkingMyCarImporter
-from app.bookings.importer.parkos import ParkosImporter
 from app.bookings.importer.myparking import MyParkingImporter
-from app.bookings.importer.base import BaseImporter
+from app.bookings.importer.parkos import ParkosImporter
+from app.bookings.importer.parkingmycar import ParkingMyCarImporter
 
-def get_importer(portal: str) -> BaseImporter:
-    key = portal.strip().lower()
 
-    if key == "parkingmycar":
-        return ParkingMyCarImporter()
-    if key == "parkos":
-        return ParkosImporter()
-    if key == "myparking":
-        return MyParkingImporter()
+class ImporterFactory:
+    """
+    Factory che restituisce l'importer corretto in base al nome del portale.
+    """
 
-    raise ValueError(f"Unsupported portal: {portal}")
+    @staticmethod
+    def get_importer(portal: str):
+        portal = portal.lower().strip()
+
+        if portal == "myparking":
+            return MyParkingImporter
+
+        if portal == "parkos":
+            return ParkosImporter
+
+        if portal == "parkingmycar":
+            return ParkingMyCarImporter
+
+        return None

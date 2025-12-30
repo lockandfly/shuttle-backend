@@ -25,6 +25,8 @@ else
     echo "[Lock&Fly] Requirements già installati."
 fi
 
-# 4) Avvia FastAPI
-echo "[Lock&Fly] Avvio FastAPI…"
-make start
+# 4) NON avviare FastAPI automaticamente
+echo "[Lock&Fly] Ambiente pronto. Avvia FastAPI manualmente con:"
+echo "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+exit 0

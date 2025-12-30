@@ -1,0 +1,97 @@
+### 🔵 ROOT CHECK
+GET https://glowing-goggles-x57xpr7p7pxp3vvg5-8000.app.github.dev/
+
+
+############################################################
+# 🅰️ PARKING AREAS
+############################################################
+
+### 📌 List all areas
+GET https://glowing-goggles-x57xpr7p7pxp3vvg5-8000.app.github.dev/parking/areas
+
+
+### ➕ Create new area
+POST https://glowing-goggles-x57xpr7p7pxp3vvg5-8000.app.github.dev/parking/areas
+Content-Type: application/json
+
+{
+  "name": "Area A",
+  "total_spots": 50,
+  "description": "Parcheggio Nord"
+}
+
+
+### 🔍 Get area by ID
+GET https://glowing-goggles-x57xpr7p7pxp3vvg5-8000.app.github.dev/parking/areas/{{area_id}}
+
+
+### ✏️ Update area
+PATCH https://glowing-goggles-x57xpr7p7pxp3vvg5-8000.app.github.dev/parking/areas/{{area_id}}
+Content-Type: application/json
+
+{
+  "name": "Area A Updated",
+  "total_spots": 60,
+  "description": "Aggiornata"
+}
+
+
+### ❌ Delete area
+DELETE https://glowing-goggles-x57xpr7p7pxp3vvg5-8000.app.github.dev/parking/areas/{{area_id}}
+
+
+
+############################################################
+# 🅱️ PARKING SPOTS
+############################################################
+
+### 📌 List all spots
+GET https://glowing-goggles-x57xpr7p7pxp3vvg5-8000.app.github.dev/parking/spots
+
+
+### ➕ Create new spot
+POST https://glowing-goggles-x57xpr7p7pxp3vvg5-8000.app.github.dev/parking/spots
+Content-Type: application/json
+
+{
+  "area_id": 1,
+  "label": "A1",
+  "status": "free"
+}
+
+
+### 🔍 Get spot by ID
+GET https://glowing-goggles-x57xpr7p7pxp3vvg5-8000.app.github.dev/parking/spots/{{spot_id}}
+
+
+### 📌 List spots by area
+GET https://glowing-goggles-x57xpr7p7pxp3vvg5-8000.app.github.dev/parking/spots/area/{{area_id}}
+
+
+### ✏️ Update spot (label + status)
+PATCH https://glowing-goggles-x57xpr7p7pxp3vvg5-8000.app.github.dev/parking/spots/{{spot_id}}
+Content-Type: application/json
+
+{
+  "label": "A1-Updated",
+  "status": "occupied"
+}
+
+
+### 🔄 Update ONLY status
+PATCH https://glowing-goggles-x57xpr7p7pxp3vvg5-8000.app.github.dev/parking/spots/{{spot_id}}/status
+Content-Type: application/json
+
+"free"
+
+
+### 🔗 Assign booking to spot
+PATCH https://glowing-goggles-x57xpr7p7pxp3vvg5-8000.app.github.dev/parking/spots/{{spot_id}}/assign-booking/{{booking_id}}
+
+
+### 🔓 Release booking from spot
+PATCH https://glowing-goggles-x57xpr7p7pxp3vvg5-8000.app.github.dev/parking/spots/{{spot_id}}/release-booking
+
+
+### ❌ Delete spot
+DELETE https://glowing-goggles-x57xpr7p7pxp3vvg5-8000.app.github.dev/parking/spots/{{spot_id}}

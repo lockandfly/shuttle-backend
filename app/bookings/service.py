@@ -1,46 +1,62 @@
-from typing import Iterable, List
-
-from sqlalchemy import select
 from sqlalchemy.orm import Session
+from fastapi import HTTPException
 
-from app.bookings.models import Booking, BookingCreate
+from app.bookings.models_orm import Booking
+from app.bookings.schemas import BookingCreate, BookingUpdate
 
 
-def upsert_bookings(db: Session, items: Iterable[BookingCreate]) -> List[Booking]:
-    """
-    Inserisce prenotazioni evitando duplicati per (portal, portal_reservation_id).
-    Se esiste già, per ora salta (no update).
-    """
-    created: List[Booking] = []
+# ---------------------------------------------------------
+# CREATE
+# ---------------------------------------------------------
 
-    for item in items:
-        # Controllo se esiste già
-        stmt = select(Booking).where(
-            Booking.portal == item.portal,
-            Booking.portal_reservation_id == item.portal_reservation_id,
-        )
-        existing = db.execute(stmt).scalar_one_or_none()
-        if existing:
-            continue
+def create_booking(db: Session, data: BookingCreate):
+    booking = Booking(**data.model_dump())
+    db.add(booking)
+    db.commit()
+    db.refresh(booking)
+    return booking
 
-        booking = Booking(
-            portal=item.portal,
-            portal_reservation_id=item.portal_reservation_id,
-            customer_name=item.customer_name,
-            email=item.email,
-            phone=item.phone,
-            checkin=item.checkin,
-            checkout=item.checkout,
-            car_plate=item.car_plate,
-            price=item.price,
-        )
 
-        db.add(booking)
-        created.append(booking)
+# ---------------------------------------------------------
+# LIST
+# ---------------------------------------------------------
+
+def list_bookings(db: Session):
+    return db.query(Booking).all()
+
+
+# ---------------------------------------------------------
+# GET SINGLE
+# ---------------------------------------------------------
+
+def get_booking(db: Session, booking_id: int):
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    return booking
+
+
+# ---------------------------------------------------------
+# UPDATE
+# ---------------------------------------------------------
+
+def update_booking(db: Session, booking_id: int, data: BookingUpdate):
+    booking = get_booking(db, booking_id)
+
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(booking, field, value)
 
     db.commit()
+    db.refresh(booking)
+    return booking
 
-    for b in created:
-        db.refresh(b)
 
-    return created
+# ---------------------------------------------------------
+# DELETE
+# ---------------------------------------------------------
+
+def delete_booking(db: Session, booking_id: int):
+    booking = get_booking(db, booking_id)
+    db.delete(booking)
+    db.commit()
+    return {"deleted": True}
