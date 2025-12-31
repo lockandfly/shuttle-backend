@@ -1,23 +1,16 @@
-from fastapi import APIRouter
-from app.services.occupancy_service import (
-    get_basic_occupancy,
-    get_advanced_occupancy,
-    get_advanced2_occupancy
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.occupancy.schemas import OccupancyResponse
+from app.occupancy.service import get_current_occupancy
+
+router = APIRouter(
+    prefix="",
+    tags=["Occupancy"]
 )
 
-router = APIRouter(prefix="/occupancy", tags=["Occupancy"])
 
-
-@router.get("/basic")
-def occupancy_basic():
-    return get_basic_occupancy()
-
-
-@router.get("/advanced")
-def occupancy_advanced():
-    return get_advanced_occupancy()
-
-
-@router.get("/advanced2")
-def occupancy_advanced2():
-    return get_advanced2_occupancy()
+@router.get("/", response_model=OccupancyResponse)
+def occupancy_status(db: Session = Depends(get_db)):
+    return get_current_occupancy(db)

@@ -1,31 +1,51 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
-from app.services.import_service import import_csv, import_rows, list_last_imported
+from fastapi import APIRouter, UploadFile, File, Form, Depends
+from sqlalchemy.orm import Session
+import shutil
+import os
+
+from app.database import get_db
+from app.bookings.services.import_service import ImportService
 
 router = APIRouter(prefix="/import", tags=["Import"])
 
 
-# -------------------------
-# IMPORT CSV
-# -------------------------
+@router.post("/")
+async def import_bookings(
+    portal: str = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Importa un file CSV/XLSX per un portale specifico.
+    """
 
-@router.post("/csv/{portal}")
-async def import_csv_endpoint(portal: str, file: UploadFile = File(...)):
-    return import_csv(portal, file)
+    # -----------------------------
+    # 1. Salvataggio temporaneo file
+    # -----------------------------
+    temp_path = f"/tmp/{file.filename}"
 
+    with open(temp_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
 
-# -------------------------
-# IMPORT JSON ROWS
-# -------------------------
+    # -----------------------------
+    # 2. Importazione tramite service
+    # -----------------------------
+    try:
+        bookings = ImportService.import_file(
+            file_path=temp_path,
+            portal=portal,
+            db=db
+        )
+    finally:
+        # Pulizia file temporaneo
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
-@router.post("/rows/{portal}")
-async def import_rows_endpoint(portal: str, rows: list[dict]):
-    return import_rows(portal, rows)
-
-
-# -------------------------
-# LIST LAST IMPORTED
-# -------------------------
-
-@router.get("/last")
-async def list_last():
-    return list_last_imported()
+    # -----------------------------
+    # 3. Risposta
+    # -----------------------------
+    return {
+        "imported": len(bookings),
+        "portal": portal,
+        "bookings": [b.id for b in bookings]
+    }

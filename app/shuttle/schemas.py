@@ -56,16 +56,18 @@ class ShuttleLogRead(BaseModel):
 # ---------------------------------------------------------
 
 class ShuttleMovementCreate(BaseModel):
+    shuttle_id: int
     operator_id: int
     action: str  # "depart" | "arrive"
-    note: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class ShuttleMovementRead(BaseModel):
     id: int
+    shuttle_id: int
     operator_id: int
     action: str
-    note: Optional[str]
+    notes: Optional[str]
     timestamp: datetime
 
     model_config = {

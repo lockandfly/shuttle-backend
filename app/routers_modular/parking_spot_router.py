@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -7,112 +7,56 @@ from app.parking.schemas import (
     ParkingSpotUpdate,
     ParkingSpotRead,
 )
+from app.parking.service import (
+    create_spot,
+    list_spots,
+    list_spots_by_area,
+    get_spot,
+    update_spot,
+    update_status,
+    assign_booking,
+    release_booking,
+    delete_spot,
+)
 from app.parking.models_orm import SpotStatus
-from app.parking import service
 
-router = APIRouter(tags=["Parking Spots"])
-
-
-@router.post(
-    "/",
-    response_model=ParkingSpotRead,
-    status_code=status.HTTP_201_CREATED,
-    summary="Create a new parking spot",
-    description="Creates a new parking spot inside an existing parking area."
+router = APIRouter(
+    prefix="/spots",
+    tags=["Parking Spots"]
 )
-def create_spot(
-    data: ParkingSpotCreate,
-    db: Session = Depends(get_db),
-):
-    if data.spot_number <= 0:
-        raise HTTPException(status_code=400, detail="Spot number must be positive")
 
-    try:
-        return service.create_spot(db, data)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@router.get("/", response_model=list[ParkingSpotRead])
+def get_all_spots(db: Session = Depends(get_db)):
+    return list_spots(db)
 
+@router.get("/area/{area_id}", response_model=list[ParkingSpotRead])
+def get_spots_in_area(area_id: int, db: Session = Depends(get_db)):
+    return list_spots_by_area(db, area_id)
 
-@router.get(
-    "/",
-    response_model=list[ParkingSpotRead],
-    summary="List all parking spots"
-)
-def list_spots(db: Session = Depends(get_db)):
-    return service.list_spots(db)
+@router.post("/", response_model=ParkingSpotRead)
+def create_new_spot(payload: ParkingSpotCreate, db: Session = Depends(get_db)):
+    return create_spot(db, payload)
 
+@router.get("/{spot_id}", response_model=ParkingSpotRead)
+def get_single_spot(spot_id: int, db: Session = Depends(get_db)):
+    return get_spot(db, spot_id)
 
-@router.get(
-    "/area/{area_id}",
-    response_model=list[ParkingSpotRead],
-    summary="List spots by area"
-)
-def list_spots_by_area(area_id: int, db: Session = Depends(get_db)):
-    return service.list_spots_by_area(db, area_id)
+@router.patch("/{spot_id}", response_model=ParkingSpotRead)
+def update_single_spot(spot_id: int, payload: ParkingSpotUpdate, db: Session = Depends(get_db)):
+    return update_spot(db, spot_id, payload)
 
+@router.patch("/{spot_id}/status/{status}", response_model=ParkingSpotRead)
+def update_spot_status(spot_id: int, status: SpotStatus, db: Session = Depends(get_db)):
+    return update_status(db, spot_id, status)
 
-@router.get(
-    "/{spot_id}",
-    response_model=ParkingSpotRead,
-    summary="Get a parking spot"
-)
-def get_spot(spot_id: int, db: Session = Depends(get_db)):
-    return service.get_spot(db, spot_id)
+@router.post("/{spot_id}/assign/{booking_id}", response_model=ParkingSpotRead)
+def assign_booking_to_spot(spot_id: int, booking_id: int, db: Session = Depends(get_db)):
+    return assign_booking(db, spot_id, booking_id)
 
+@router.post("/{spot_id}/release", response_model=ParkingSpotRead)
+def release_spot_booking(spot_id: int, db: Session = Depends(get_db)):
+    return release_booking(db, spot_id)
 
-@router.patch(
-    "/{spot_id}",
-    response_model=ParkingSpotRead,
-    summary="Update a parking spot"
-)
-def update_spot(
-    spot_id: int,
-    data: ParkingSpotUpdate,
-    db: Session = Depends(get_db),
-):
-    return service.update_spot(db, spot_id, data)
-
-
-@router.patch(
-    "/{spot_id}/status",
-    response_model=ParkingSpotRead,
-    summary="Update spot status"
-)
-def update_status(
-    spot_id: int,
-    status: SpotStatus,
-    db: Session = Depends(get_db),
-):
-    return service.update_status(db, spot_id, status)
-
-
-@router.patch(
-    "/{spot_id}/assign-booking/{booking_id}",
-    response_model=ParkingSpotRead,
-    summary="Assign booking to spot"
-)
-def assign_booking(
-    spot_id: int,
-    booking_id: int,
-    db: Session = Depends(get_db),
-):
-    return service.assign_booking(db, spot_id, booking_id)
-
-
-@router.patch(
-    "/{spot_id}/release-booking",
-    response_model=ParkingSpotRead,
-    summary="Release booking from spot"
-)
-def release_booking(spot_id: int, db: Session = Depends(get_db)):
-    return service.release_booking(db, spot_id)
-
-
-@router.delete(
-    "/{spot_id}",
-    summary="Delete a parking spot"
-)
-def delete_spot(spot_id: int, db: Session = Depends(get_db)):
-    return service.delete_spot(db, spot_id)
+@router.delete("/{spot_id}")
+def delete_single_spot(spot_id: int, db: Session = Depends(get_db)):
+    return delete_spot(db, spot_id)

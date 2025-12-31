@@ -1,47 +1,65 @@
-from fastapi import APIRouter
-from app.services.finance_service import (
-    get_total_revenue,
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.finance.service import (
     get_daily_revenue,
-    get_monthly_revenue,
-    get_payment_methods_stats,
-    get_cancellations_stats,
-    get_revenue_forecast,
-    get_finance_kpi
+    get_portal_revenue,
+    get_booking_revenue,
+)
+from app.finance.schemas import (
+    DailyRevenueResponse,
+    PortalRevenueResponse,
+    BookingRevenueResponse,
 )
 
-router = APIRouter(prefix="/finance", tags=["Finance"])
+router = APIRouter(
+    prefix="",
+    tags=["Finance"]
+)
+
+# -----------------------------
+# DAILY REVENUE
+# -----------------------------
+
+@router.get("/daily", response_model=DailyRevenueResponse)
+def daily_revenue(db: Session = Depends(get_db)):
+    """
+    Returns daily revenue aggregated by:
+    - date
+    - total revenue
+    - number of bookings
+    """
+    return get_daily_revenue(db)
 
 
-@router.get("/revenue")
-def finance_revenue():
-    return get_total_revenue()
+# -----------------------------
+# REVENUE BY PORTAL
+# -----------------------------
+
+@router.get("/portals", response_model=list[PortalRevenueResponse])
+def revenue_by_portal(db: Session = Depends(get_db)):
+    """
+    Returns revenue grouped by portal:
+    - parkos
+    - myparking
+    - parkingmycar
+    - direct
+    """
+    return get_portal_revenue(db)
 
 
-@router.get("/revenue/daily")
-def finance_revenue_daily():
-    return get_daily_revenue()
+# -----------------------------
+# REVENUE BY BOOKING
+# -----------------------------
 
-
-@router.get("/revenue/monthly")
-def finance_revenue_monthly():
-    return get_monthly_revenue()
-
-
-@router.get("/payment_methods")
-def finance_payment_methods():
-    return get_payment_methods_stats()
-
-
-@router.get("/cancellations")
-def finance_cancellations():
-    return get_cancellations_stats()
-
-
-@router.get("/forecast")
-def finance_forecast():
-    return get_revenue_forecast()
-
-
-@router.get("/kpi")
-def finance_kpi():
-    return get_finance_kpi()
+@router.get("/bookings", response_model=list[BookingRevenueResponse])
+def revenue_by_booking(db: Session = Depends(get_db)):
+    """
+    Returns revenue for each booking:
+    - booking id
+    - base price
+    - final price
+    - portal
+    """
+    return get_booking_revenue(db)

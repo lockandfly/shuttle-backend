@@ -19,6 +19,7 @@ class Shuttle(Base):
     capacity = Column(Integer, nullable=False)
 
     logs = relationship("ShuttleLog", back_populates="shuttle", cascade="all, delete")
+    movements = relationship("ShuttleMovement", back_populates="shuttle", cascade="all, delete")
 
 
 # ---------------------------------------------------------
@@ -46,9 +47,14 @@ class ShuttleMovement(Base):
     __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True)
+
+    shuttle_id = Column(Integer, ForeignKey("shuttles.id"), nullable=False)
     operator_id = Column(Integer, ForeignKey("operators.id"), nullable=False)
+
     action = Column(String, nullable=False)  # "depart" | "arrive"
-    note = Column(String, nullable=True)     # <--- QUESTA È LA COLONNA MANCANTE
+    notes = Column(String, nullable=True)
+
     timestamp = Column(DateTime, default=datetime.now)
 
+    shuttle = relationship("Shuttle", back_populates="movements")
     operator = relationship("Operator")

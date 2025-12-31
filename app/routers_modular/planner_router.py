@@ -1,29 +1,24 @@
-from fastapi import APIRouter
-from app.services.planner_service import (
-    create_plan,
-    add_plan_item,
-    get_plan,
-    list_plans,
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.planner.schemas import ForecastPlanRead
+from app.planner.service import (
+    get_forecast_plan,
+    generate_forecast,
 )
 
-router = APIRouter(prefix="/planner", tags=["Planner"])
+router = APIRouter(
+    prefix="",
+    tags=["Planner"]
+)
 
 
-@router.post("/create")
-def create_new_plan(name: str):
-    return create_plan(name)
+@router.get("/forecast/{date}", response_model=ForecastPlanRead | None)
+def get_forecast(date: str, db: Session = Depends(get_db)):
+    return get_forecast_plan(db, date)
 
 
-@router.post("/add_item")
-def add_item(plan_id: int, description: str):
-    return add_plan_item(plan_id, description)
-
-
-@router.get("/get")
-def get_single_plan(plan_id: int):
-    return get_plan(plan_id)
-
-
-@router.get("/list")
-def get_all_plans():
-    return list_plans()
+@router.post("/forecast/generate", response_model=list[ForecastPlanRead])
+def generate_forecast_plans(days: int = 15, db: Session = Depends(get_db)):
+    return generate_forecast(db, days)

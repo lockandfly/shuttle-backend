@@ -76,6 +76,11 @@ def list_logs(db: Session, shuttle_id: int | None = None):
 # ---------------------------------------------------------
 
 def create_movement(db: Session, data: ShuttleMovementCreate):
+    # Check shuttle exists
+    shuttle = db.query(Shuttle).filter(Shuttle.id == data.shuttle_id).first()
+    if not shuttle:
+        raise HTTPException(status_code=404, detail="Shuttle not found")
+
     # Check operator exists
     operator = db.query(Operator).filter(Operator.id == data.operator_id).first()
     if not operator:
@@ -88,8 +93,21 @@ def create_movement(db: Session, data: ShuttleMovementCreate):
     return movement
 
 
-def list_movements(db: Session, operator_id: int | None = None):
+def list_movements(
+    db: Session,
+    shuttle_id: int | None = None,
+    operator_id: int | None = None,
+    action: str | None = None
+):
     query = db.query(ShuttleMovement)
+
+    if shuttle_id:
+        query = query.filter(ShuttleMovement.shuttle_id == shuttle_id)
+
     if operator_id:
         query = query.filter(ShuttleMovement.operator_id == operator_id)
+
+    if action:
+        query = query.filter(ShuttleMovement.action == action)
+
     return query.order_by(ShuttleMovement.timestamp.desc()).all()

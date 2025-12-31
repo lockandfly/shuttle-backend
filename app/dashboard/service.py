@@ -3,59 +3,14 @@ from sqlalchemy.orm import Session
 
 from app.parking.models_orm import ParkingArea, ParkingSpot, SpotStatus
 from app.bookings.models_orm import Booking
-from app.shuttle.models_orm import Shuttle, ShuttleLog
+from app.shuttle.models_orm import Shuttle, ShuttleLog, ShuttleMovement
 from app.key_management.models_orm import KeySlot, KeyMovement
 from app.operators.models_orm import Operator
 
 
 def get_dashboard_data(db: Session):
     """
-    Ritorna la dashboard aggregata del parcheggio.
-
-    Struttura di ritorno (stabile, pensata per il front-end):
-
-    {
-        "parking": {
-            "areas": int,
-            "spots_total": int,
-            "spots_free": int,
-            "spots_occupied": int,
-            "spots_reserved": int,
-            "utilization_rate": float | None
-        },
-        "bookings": {
-            "total": int
-        },
-        "shuttle": {
-            "vehicles": int,
-            "logs": int,
-            "last_log": {
-                "id": int,
-                "shuttle_id": int,
-                "message": str,
-                "timestamp": str
-            } | None,
-            "recent_logs": [
-                {
-                    "id": int,
-                    "shuttle_id": int,
-                    "message": str,
-                    "timestamp": str
-                },
-                ...
-            ]
-        },
-        "key_management": {
-            "keyslots": int,
-            "movements": int
-        },
-        "operators": {
-            "total": int
-        },
-        "meta": {
-            "generated_at": str
-        }
-    }
+    Dashboard aggregata Lock&Fly.
     """
 
     # ---------------------------------------------------------
@@ -68,17 +23,21 @@ def get_dashboard_data(db: Session):
     spots_occupied = db.query(ParkingSpot).filter(ParkingSpot.status == SpotStatus.OCCUPIED).count()
     spots_reserved = db.query(ParkingSpot).filter(ParkingSpot.status == SpotStatus.RESERVED).count()
 
-    utilization_rate = None
-    if spots_total > 0:
-        utilization_rate = spots_occupied / spots_total
+    utilization_rate = (spots_occupied / spots_total) if spots_total > 0 else None
 
     # ---------------------------------------------------------
     # BOOKINGS
     # ---------------------------------------------------------
     bookings_total = db.query(Booking).count()
 
+    bookings_active = (
+        db.query(Booking)
+        .filter(Booking.status == "active")
+        .count()
+    )
+
     # ---------------------------------------------------------
-    # SHUTTLE
+    # SHUTTLE VEHICLES
     # ---------------------------------------------------------
     shuttles_total = db.query(Shuttle).count()
     shuttle_logs_total = db.query(ShuttleLog).count()
@@ -95,24 +54,40 @@ def get_dashboard_data(db: Session):
             "id": last_log_obj.id,
             "shuttle_id": last_log_obj.shuttle_id,
             "message": last_log_obj.message,
-            "timestamp": last_log_obj.timestamp.isoformat() if last_log_obj.timestamp else None,
+            "timestamp": last_log_obj.timestamp.isoformat(),
         }
-
-    recent_logs_objs = (
-        db.query(ShuttleLog)
-        .order_by(ShuttleLog.timestamp.desc())
-        .limit(10)
-        .all()
-    )
 
     recent_logs = [
         {
             "id": log.id,
             "shuttle_id": log.shuttle_id,
             "message": log.message,
-            "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+            "timestamp": log.timestamp.isoformat(),
         }
-        for log in recent_logs_objs
+        for log in db.query(ShuttleLog)
+        .order_by(ShuttleLog.timestamp.desc())
+        .limit(10)
+        .all()
+    ]
+
+    # ---------------------------------------------------------
+    # SHUTTLE MOVEMENTS (NEW)
+    # ---------------------------------------------------------
+    movements_total = db.query(ShuttleMovement).count()
+
+    recent_movements = [
+        {
+            "id": m.id,
+            "shuttle_id": m.shuttle_id,
+            "operator_id": m.operator_id,
+            "action": m.action,
+            "notes": m.notes,
+            "timestamp": m.timestamp.isoformat(),
+        }
+        for m in db.query(ShuttleMovement)
+        .order_by(ShuttleMovement.timestamp.desc())
+        .limit(10)
+        .all()
     ]
 
     # ---------------------------------------------------------
@@ -145,12 +120,15 @@ def get_dashboard_data(db: Session):
         },
         "bookings": {
             "total": bookings_total,
+            "active": bookings_active,
         },
         "shuttle": {
             "vehicles": shuttles_total,
             "logs": shuttle_logs_total,
             "last_log": last_log,
             "recent_logs": recent_logs,
+            "movements_total": movements_total,
+            "recent_movements": recent_movements,
         },
         "key_management": {
             "keyslots": keyslots_total,

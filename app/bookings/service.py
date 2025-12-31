@@ -3,6 +3,7 @@ from fastapi import HTTPException
 
 from app.bookings.models_orm import Booking
 from app.bookings.schemas import BookingCreate, BookingUpdate
+from app.pricing.service import calculate_dynamic_price
 
 
 # ---------------------------------------------------------
@@ -10,7 +11,34 @@ from app.bookings.schemas import BookingCreate, BookingUpdate
 # ---------------------------------------------------------
 
 def create_booking(db: Session, data: BookingCreate):
-    booking = Booking(**data.model_dump())
+    # Dynamic Pricing
+    duration_days = (data.departure_time - data.arrival_time).days
+
+    pricing = calculate_dynamic_price(
+        db=db,
+        base_price=data.base_price,
+        arrival_date=data.arrival_time.isoformat(),
+        stay_length=duration_days,
+        portal=data.portal.value if data.portal else "direct",
+    )
+
+    booking = Booking(
+        customer_name=data.customer_name,
+        customer_phone=data.customer_phone,
+        license_plate=data.license_plate,
+        arrival_time=data.arrival_time,
+        departure_time=data.departure_time,
+
+        portal=data.portal.value if data.portal else "direct",
+        parking_area=data.parking_area,
+        passenger_count=data.passenger_count,
+
+        base_price=pricing["base_price"],
+        final_price=pricing["final_price"],
+        pricing_breakdown=pricing["adjustments"],
+        pricing_reasoning=pricing["reasoning"],
+    )
+
     db.add(booking)
     db.commit()
     db.refresh(booking)
