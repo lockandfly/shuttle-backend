@@ -1,71 +1,37 @@
-from datetime import datetime
-from typing import Optional, List
-from pydantic import BaseModel, Field
+from datetime import datetime, date
+from pydantic import BaseModel
+from typing import Optional
 
-from app.bookings.portal_enum import Portal   # ✅ IMPORT CORRETTO
-
-
-# ---------------------------------------------------------
-# BASE SCHEMA
-# ---------------------------------------------------------
-
-class BookingBase(BaseModel):
+class BookingCreate(BaseModel):
+    portal: str
     customer_name: str
-    customer_phone: Optional[str] = None
+    customer_email: Optional[str] = None
     license_plate: Optional[str] = None
-    arrival_time: datetime
-    departure_time: datetime
-    portal: Optional[Portal] = Portal.direct
-    parking_area: Optional[str] = None
-    passenger_count: int = 1
-    base_price: float = 0.0
-
-
-# ---------------------------------------------------------
-# CREATE
-# ---------------------------------------------------------
-
-class BookingCreate(BookingBase):
-    pass
-
-
-# ---------------------------------------------------------
-# UPDATE
-# ---------------------------------------------------------
-
-class BookingUpdate(BaseModel):
-    customer_name: Optional[str] = None
-    customer_phone: Optional[str] = None
-    license_plate: Optional[str] = None
-    arrival_time: Optional[datetime] = None
-    departure_time: Optional[datetime] = None
-    portal: Optional[Portal] = None
-    parking_area: Optional[str] = None
-    passenger_count: Optional[int] = None
-    base_price: Optional[float] = None
-    final_price: Optional[float] = None
-
-
-# ---------------------------------------------------------
-# READ
-# ---------------------------------------------------------
+    arrival: datetime
+    departure: datetime
+    price: float
+    notes: Optional[str] = None
 
 class BookingRead(BaseModel):
     id: int
-    customer_name: str
-    customer_phone: Optional[str]
-    license_plate: Optional[str]
-    arrival_time: datetime
-    departure_time: datetime
     portal: str
-    parking_area: Optional[str]
-    passenger_count: int
-    base_price: float
-    final_price: float
-    pricing_breakdown: Optional[dict]
-    pricing_reasoning: Optional[str]
-    status: str
-    raw_data: Optional[dict]
+    customer_name: str
+    customer_email: Optional[str] = None
+    license_plate: Optional[str] = None
+    arrival: datetime
+    departure: datetime
+    price: float
+    notes: Optional[str] = None
+    created_at: datetime
 
     class Config:
-        from_attributes = True
+        orm_mode = True
+
+class BookingUpdate(BaseModel):
+    customer_name: Optional[str] = None
+    customer_email: Optional[str] = None
+    license_plate: Optional[str] = None
+    arrival: Optional[datetime] = None
+    departure: Optional[datetime] = None
+    price: Optional[float] = None
+    notes: Optional[str] = None

@@ -5,7 +5,7 @@ from app.database import Base
 
 
 class Booking(Base):
-    __tablename__ = "bookings"
+    __tablename__ = "bookings_pricing"   # ← TABELLA DEDICATA AL DYNAMIC PRICING
     __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True)

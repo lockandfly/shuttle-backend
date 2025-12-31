@@ -5,13 +5,13 @@ import os
 
 from app.database import get_db
 from app.bookings.services.import_service import ImportService
+from app.bookings.schemas_portal import Portal
 
 router = APIRouter(prefix="/import", tags=["Import"])
 
-
 @router.post("/")
 async def import_bookings(
-    portal: str = Form(...),
+    portal: Portal = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
@@ -33,7 +33,7 @@ async def import_bookings(
     try:
         bookings = ImportService.import_file(
             file_path=temp_path,
-            portal=portal,
+            portal=portal.value,
             db=db
         )
     finally:
@@ -46,6 +46,6 @@ async def import_bookings(
     # -----------------------------
     return {
         "imported": len(bookings),
-        "portal": portal,
+        "portal": portal.value,
         "bookings": [b.id for b in bookings]
     }
