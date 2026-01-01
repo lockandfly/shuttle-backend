@@ -10,9 +10,14 @@ class ParkosImporter:
 
     @staticmethod
     def import_booking(row: dict, db: Session) -> Booking:
+        # Normalizzazione dati
         customer_name = normalize_name(row.get("Nome") or row.get("nome_completo"))
         customer_email = row.get("Email") or row.get("email")
-        license_plate = normalize_license_plate(row.get("Targa") or row.get("targa") or "")
+        customer_phone = row.get("Telefono") or row.get("phone") or row.get("phonenumber")
+
+        license_plate = normalize_license_plate(
+            row.get("Targa") or row.get("targa") or ""
+        )
 
         arrival = parse_date(row.get("Ingresso") or row.get("ingresso"))
         departure = parse_date(row.get("Uscita") or row.get("uscita"))
@@ -22,6 +27,7 @@ class ParkosImporter:
         except:
             passenger_count = 1
 
+        # Prezzo base
         base_price_raw = (
             row.get("Pagato online")
             or row.get("Da pagare")
@@ -35,29 +41,43 @@ class ParkosImporter:
             base_price = 0.0
 
         final_price = base_price
-        pricing_breakdown = None
-        pricing_reasoning = "dynamic pricing not applied (base listino non definito)"
 
+        # Dynamic pricing placeholders
+        pricing_breakdown = None
+        pricing_reasoning = "dynamic pricing not applied"
+
+        # Tipo servizio
         service_description = row.get("Area Sosta") or row.get("area_sosta") or ""
         parking_area = detect_service_type(service_description)
 
+        # Stato prenotazione
         status_raw = str(row.get("Stato") or row.get("stato") or "").lower()
         status = "cancelled" if "annull" in status_raw or "cancel" in status_raw else "active"
 
         booking = Booking(
+            portal=Portal.parkos.value,
+            code=row.get("Codice") or row.get("code"),
             customer_name=customer_name,
             customer_email=customer_email,
+            customer_phone=customer_phone,
             license_plate=license_plate,
+
+            arrival=arrival,
+            departure=departure,
             arrival_time=arrival,
             departure_time=departure,
+
             passenger_count=passenger_count,
-            portal=Portal.parkos.value,
-            parking_area=parking_area,
+            passengers=passenger_count,
+
             base_price=base_price,
             final_price=final_price,
             pricing_breakdown=pricing_breakdown,
             pricing_reasoning=pricing_reasoning,
+
+            parking_area=parking_area,
             status=status,
+
             raw_data=row,
         )
 

@@ -10,9 +10,15 @@ class MyParkingImporter:
 
     @staticmethod
     def import_booking(row: dict, db: Session) -> Booking:
-        customer_name = normalize_name(row.get("customer_name") or row.get("Nome") or row.get("nome_completo"))
+        customer_name = normalize_name(
+            row.get("customer_name") or row.get("Nome") or row.get("nome_completo")
+        )
         customer_email = row.get("customer_email") or row.get("email")
-        license_plate = normalize_license_plate(row.get("license_plate") or row.get("Targa") or "")
+        customer_phone = row.get("phone") or row.get("telefono")
+
+        license_plate = normalize_license_plate(
+            row.get("license_plate") or row.get("Targa") or ""
+        )
 
         arrival = parse_date(row.get("checkin") or row.get("check_in"))
         departure = parse_date(row.get("checkout") or row.get("check_out"))
@@ -35,8 +41,9 @@ class MyParkingImporter:
             base_price = 0.0
 
         final_price = base_price
+
         pricing_breakdown = None
-        pricing_reasoning = "dynamic pricing not applied (base listino non definito)"
+        pricing_reasoning = "dynamic pricing not applied"
 
         service_description = row.get("tariffario") or row.get("service") or ""
         parking_area = detect_service_type(service_description)
@@ -45,19 +52,29 @@ class MyParkingImporter:
         status = "cancelled" if "annull" in status_raw or "cancel" in status_raw else "active"
 
         booking = Booking(
+            portal=Portal.myparking.value,
+            code=row.get("Codice") or row.get("code"),
             customer_name=customer_name,
             customer_email=customer_email,
+            customer_phone=customer_phone,
             license_plate=license_plate,
+
+            arrival=arrival,
+            departure=departure,
             arrival_time=arrival,
             departure_time=departure,
+
             passenger_count=passenger_count,
-            portal=Portal.myparking.value,
-            parking_area=parking_area,
+            passengers=passenger_count,
+
             base_price=base_price,
             final_price=final_price,
             pricing_breakdown=pricing_breakdown,
             pricing_reasoning=pricing_reasoning,
+
+            parking_area=parking_area,
             status=status,
+
             raw_data=row,
         )
 
