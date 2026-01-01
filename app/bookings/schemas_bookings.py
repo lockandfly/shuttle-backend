@@ -1,18 +1,38 @@
 from datetime import datetime
 from pydantic import BaseModel
-from typing import Optional
 
 
-class BookingOut(BaseModel):
-    id: int
+class BookingBase(BaseModel):
     portal: str
-    customer_name: str
-    customer_email: Optional[str]
-    license_plate: Optional[str]
+    code: str | None = None
+    customer_name: str | None = None
+    customer_email: str | None = None
+    phone: str | None = None
+    license_plate: str | None = None
+
     arrival: datetime
     departure: datetime
-    price: float
-    notes: Optional[str]
+
+    price: float | None = None
+
+    payment_complete: bool | None = None
+    external_id: str | None = None
+    online_payment: bool | None = None
+    payment_option: str | None = None
+
+    cancel_date: datetime | None = None
+    cancel_reason: str | None = None
+
+    passengers: int | None = None
+    days: int | None = None
+
+    notes: str | None = None
+
+
+class BookingResponse(BookingBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True

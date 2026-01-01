@@ -2,60 +2,29 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.bookings.models import Booking
-from app.bookings.schemas_bookings import BookingOut
+from app.bookings.models_orm import Booking
+from app.bookings.schemas_bookings import BookingResponse
 
-router = APIRouter(prefix="/bookings", tags=["Bookings Import"])
+router = APIRouter(
+    prefix="/bookings",
+    tags=["Bookings"],
+)
 
 
-# ---------------------------------------------------------
-# GET ALL BOOKINGS
-# ---------------------------------------------------------
-@router.get("/", response_model=list[BookingOut])
+@router.get("/", response_model=list[BookingResponse])
 def get_all_bookings(db: Session = Depends(get_db)):
-    return db.query(Booking).all()
+    try:
+        return db.query(Booking).all()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-# ---------------------------------------------------------
-# GET BOOKING BY ID
-# ---------------------------------------------------------
-@router.get("/{booking_id}", response_model=BookingOut)
+@router.get("/{booking_id}", response_model=BookingResponse)
 def get_booking(booking_id: int, db: Session = Depends(get_db)):
-    booking = db.query(Booking).filter(Booking.id == booking_id).first()
-    if not booking:
-        raise HTTPException(404, "Booking not found")
-    return booking
-
-
-# ---------------------------------------------------------
-# DELETE BOOKING
-# ---------------------------------------------------------
-@router.delete("/{booking_id}")
-def delete_booking(booking_id: int, db: Session = Depends(get_db)):
-    booking = db.query(Booking).filter(Booking.id == booking_id).first()
-    if not booking:
-        raise HTTPException(404, "Booking not found")
-
-    db.delete(booking)
-    db.commit()
-
-    return {"status": "deleted", "id": booking_id}
-
-
-# ---------------------------------------------------------
-# SEARCH BOOKINGS (targa, nome, portale)
-# ---------------------------------------------------------
-@router.get("/search/", response_model=list[BookingOut])
-def search_bookings(
-    q: str,
-    db: Session = Depends(get_db)
-):
-    q_lower = f"%{q.lower()}%"
-
-    results = db.query(Booking).filter(
-        (Booking.customer_name.ilike(q_lower)) |
-        (Booking.license_plate.ilike(q_lower)) |
-        (Booking.portal.ilike(q_lower))
-    ).all()
-
-    return results
+    try:
+        booking = db.query(Booking).filter(Booking.id == booking_id).first()
+        if not booking:
+            raise HTTPException(status_code=404, detail="Booking not found")
+        return booking
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
