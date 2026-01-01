@@ -10,30 +10,41 @@ class MyParkingImporter:
 
     @staticmethod
     def import_booking(row: dict, db: Session) -> Booking:
-        customer_name = normalize_name(
-            row.get("customer_name") or row.get("Nome") or row.get("nome_completo")
-        )
-        customer_email = row.get("customer_email") or row.get("email")
-        customer_phone = row.get("phone") or row.get("telefono")
+        # -----------------------------
+        # NOME CLIENTE
+        # -----------------------------
+        customer_name = normalize_name(row.get("Nominativo"))
 
-        license_plate = normalize_license_plate(
-            row.get("license_plate") or row.get("Targa") or ""
-        )
+        # -----------------------------
+        # EMAIL (non presente nel file → None)
+        # -----------------------------
+        customer_email = None
 
-        arrival = parse_date(row.get("checkin") or row.get("check_in"))
-        departure = parse_date(row.get("checkout") or row.get("check_out"))
+        # -----------------------------
+        # TELEFONO (non presente nel file → None)
+        # -----------------------------
+        customer_phone = None
 
-        try:
-            passenger_count = int(row.get("passenger_count") or row.get("Passeggeri") or 1)
-        except:
-            passenger_count = 1
+        # -----------------------------
+        # TARGA
+        # -----------------------------
+        license_plate = normalize_license_plate(row.get("Targa"))
 
-        base_price_raw = (
-            row.get("importo_pagato_online")
-            or row.get("paid_online")
-            or row.get("price")
-            or row.get("importo")
-        )
+        # -----------------------------
+        # DATE
+        # -----------------------------
+        arrival = parse_date(row.get("Ingresso"))
+        departure = parse_date(row.get("Uscita"))
+
+        # -----------------------------
+        # PASSEGGERI (non presente → default 1)
+        # -----------------------------
+        passenger_count = 1
+
+        # -----------------------------
+        # PREZZI
+        # -----------------------------
+        base_price_raw = row.get("Pagato online")
 
         try:
             base_price = float(str(base_price_raw).replace("€", "").replace(",", "."))
@@ -45,18 +56,35 @@ class MyParkingImporter:
         pricing_breakdown = None
         pricing_reasoning = "dynamic pricing not applied"
 
-        service_description = row.get("tariffario") or row.get("service") or ""
+        # -----------------------------
+        # TIPO SERVIZIO
+        # -----------------------------
+        service_description = row.get("Area Sosta") or ""
         parking_area = detect_service_type(service_description)
 
-        status_raw = str(row.get("stato") or row.get("status") or "").lower()
-        status = "cancelled" if "annull" in status_raw or "cancel" in status_raw else "active"
+        # -----------------------------
+        # STATO
+        # -----------------------------
+        stato_raw = str(row.get("Stato") or "").lower()
 
+        if "conferma" in stato_raw or "approv" in stato_raw:
+            status = "active"
+        elif "annull" in stato_raw or "cancel" in stato_raw:
+            status = "cancelled"
+        else:
+            status = "active"
+
+        # -----------------------------
+        # CREAZIONE BOOKING
+        # -----------------------------
         booking = Booking(
             portal=Portal.myparking.value,
-            code=row.get("Codice") or row.get("code"),
+            code=row.get("Codice Prenotazione"),
+
             customer_name=customer_name,
             customer_email=customer_email,
             customer_phone=customer_phone,
+
             license_plate=license_plate,
 
             arrival=arrival,
