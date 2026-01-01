@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app.bookings.models_orm import Booking
-from app.bookings.portal_enum import Portal
+from app.portals.enums import Portal
 from app.utils.normalization import normalize_license_plate, normalize_name
 from app.utils.service_type import detect_service_type
 from app.utils.date_parser import parse_date
@@ -10,7 +10,6 @@ class ParkosImporter:
 
     @staticmethod
     def import_booking(row: dict, db: Session) -> Booking:
-        # Normalizzazione dati
         customer_name = normalize_name(row.get("Nome") or row.get("nome_completo"))
         customer_email = row.get("Email") or row.get("email")
         customer_phone = row.get("Telefono") or row.get("phone") or row.get("phonenumber")
@@ -27,7 +26,6 @@ class ParkosImporter:
         except:
             passenger_count = 1
 
-        # Prezzo base
         base_price_raw = (
             row.get("Pagato online")
             or row.get("Da pagare")
@@ -42,15 +40,12 @@ class ParkosImporter:
 
         final_price = base_price
 
-        # Dynamic pricing placeholders
         pricing_breakdown = None
         pricing_reasoning = "dynamic pricing not applied"
 
-        # Tipo servizio
         service_description = row.get("Area Sosta") or row.get("area_sosta") or ""
         parking_area = detect_service_type(service_description)
 
-        # Stato prenotazione
         status_raw = str(row.get("Stato") or row.get("stato") or "").lower()
         status = "cancelled" if "annull" in status_raw or "cancel" in status_raw else "active"
 
