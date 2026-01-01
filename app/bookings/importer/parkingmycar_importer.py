@@ -1,92 +1,148 @@
+import json
+from datetime import datetime
 from sqlalchemy.orm import Session
+
 from app.bookings.models_orm import Booking
 from app.portals.enums import Portal
-from app.utils.normalization import normalize_license_plate, normalize_name
-from app.utils.service_type import detect_service_type
-from app.utils.date_parser import parse_date
-import re
 
 
 class ParkingMyCarImporter:
 
     @staticmethod
-    def extract_license_plate(vehicle_details: str) -> str:
-        if not vehicle_details:
-            return None
+    def import_booking(row: dict, db: Session):
+        """
+        Import di una singola prenotazione ParkingMyCar.
+        """
 
-        match = re.search(r"[A-Z]{2}\d{3}[A-Z]{2}", vehicle_details.upper())
-        if match:
-            return match.group(0)
-
-        return None
-
-    @staticmethod
-    def import_booking(row: dict, db: Session) -> Booking:
-        customer_name = normalize_name(row.get("Cliente"))
-        customer_email = None
-        customer_phone = None
-
-        license_plate = ParkingMyCarImporter.extract_license_plate(
+        # -------------------------
+        # 1) Normalizzazione targa
+        # -------------------------
+        plate = (
             row.get("Dettagli Veicolo")
+            or row.get("Targa")
+            or row.get("Tipologia Veicolo")
+            or ""
         )
-        license_plate = normalize_license_plate(license_plate)
-
-        arrival = parse_date(row.get("Check-in"))
-        departure = parse_date(row.get("Check-out"))
-
-        passenger_count = 1
-
-        base_price_raw = row.get("Importo pagato online") or row.get("Tariffario")
 
         try:
-            base_price = float(str(base_price_raw).replace("€", "").replace(",", "."))
+            plate = str(plate).strip().upper()
         except:
-            base_price = 0.0
+            plate = ""
 
-        final_price = base_price
+        if plate in ["", "NAN", "NONE", "NULL"]:
+            plate = None
 
-        pricing_breakdown = None
-        pricing_reasoning = "dynamic pricing not applied"
+        # -------------------------
+        # 2) Estrazione campi base
+        # -------------------------
+        code = row.get("ID") or None
+        customer_name = row.get("Cliente") or None
+        customer_email = None  # ParkingMyCar non fornisce email
 
-        service_description = row.get("Tariffario") or ""
-        parking_area = detect_service_type(service_description)
+        phone = None
+        customer_phone = None
 
-        stato_raw = str(row.get("Stato") or "").lower()
+        # -------------------------
+        # 3) Date e orari (chiavi corrette)
+        # -------------------------
+        def parse_dt(value):
+            if not value:
+                return None
 
-        if "approv" in stato_raw:
-            status = "active"
-        elif "annull" in stato_raw or "cancel" in stato_raw:
-            status = "cancelled"
-        else:
-            status = "active"
+            value = str(value).strip()
 
+            formats = [
+                "%Y-%m-%d %H:%M",       # formato reale del tuo CSV
+                "%Y-%m-%d %H:%M:%S",
+                "%d/%m/%Y %H:%M",
+                "%d/%m/%Y %H.%M",
+                "%d-%m-%Y %H:%M",
+            ]
+
+            for fmt in formats:
+                try:
+                    return datetime.strptime(value, fmt)
+                except:
+                    pass
+
+            try:
+                return datetime.fromisoformat(value)
+            except:
+                return None
+
+        arrival = parse_dt(row.get("Check-in"))
+        departure = parse_dt(row.get("Check-out"))
+
+        if arrival is None or departure is None:
+            raise ValueError("Formato data non riconosciuto")
+
+        arrival_time = arrival
+        departure_time = departure
+
+        # -------------------------
+        # 4) Prezzi
+        # -------------------------
+        def parse_price(value):
+            if value is None:
+                return None
+            try:
+                return float(str(value).replace("€", "").replace(",", ".").strip())
+            except:
+                return None
+
+        base_price = parse_price(row.get("Tariffario"))
+        final_price = parse_price(row.get("Importo pagato online"))
+
+        # -------------------------
+        # 5) Altri campi
+        # -------------------------
+        passengers = 1
+        days = None
+        passenger_count = 1
+        notes = None
+        parking_area = "standard"
+
+        # -------------------------
+        # 6) Raw data
+        # -------------------------
+        try:
+            raw_data = json.dumps(row, ensure_ascii=False)
+        except:
+            raw_data = "{}"
+
+        # -------------------------
+        # 7) Creazione booking
+        # -------------------------
         booking = Booking(
-            portal=Portal.parkingmycar.value,
-            code=row.get("ID"),
-
+            portal=Portal.parkingmycar,
+            code=code,
             customer_name=customer_name,
             customer_email=customer_email,
+            phone=phone,
             customer_phone=customer_phone,
-
-            license_plate=license_plate,
-
+            license_plate=plate,
             arrival=arrival,
             departure=departure,
-            arrival_time=arrival,
-            departure_time=departure,
-
+            arrival_time=arrival_time,
+            departure_time=departure_time,
+            price=final_price,
+            payment_complete=None,
+            external_id=None,
+            online_payment=None,
+            payment_option=None,
+            cancel_date=None,
+            cancel_reason=None,
+            passengers=passengers,
+            days=days,
             passenger_count=passenger_count,
-            passengers=passenger_count,
-
+            notes=notes,
+            parking_area=parking_area,
             base_price=base_price,
             final_price=final_price,
-            pricing_breakdown=pricing_breakdown,
-            pricing_reasoning=pricing_reasoning,
-
-            parking_area=parking_area,
-            status=status,
-
-            raw_data=row,
+            pricing_breakdown="null",
+            pricing_reasoning="dynamic pricing not applied",
+            status="active",
+            raw_data=raw_data,
         )
 
         db.add(booking)
