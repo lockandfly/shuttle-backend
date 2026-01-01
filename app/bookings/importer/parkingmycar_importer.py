@@ -4,36 +4,68 @@ from app.bookings.portal_enum import Portal
 from app.utils.normalization import normalize_license_plate, normalize_name
 from app.utils.service_type import detect_service_type
 from app.utils.date_parser import parse_date
+import re
 
 
 class ParkingMyCarImporter:
 
     @staticmethod
+    def extract_license_plate(vehicle_details: str) -> str:
+        """
+        Estrae la targa da stringhe tipo:
+        "Suzuki Swift - GV138MZ"
+        "Fiat Panda - AB123CD"
+        """
+        if not vehicle_details:
+            return None
+
+        # Cerca pattern targa italiana
+        match = re.search(r"[A-Z]{2}\d{3}[A-Z]{2}", vehicle_details.upper())
+        if match:
+            return match.group(0)
+
+        return None
+
+    @staticmethod
     def import_booking(row: dict, db: Session) -> Booking:
-        customer_name = normalize_name(
-            row.get("full_name") or row.get("Nome") or row.get("nome_completo")
+        # -----------------------------
+        # NOME CLIENTE
+        # -----------------------------
+        customer_name = normalize_name(row.get("Cliente"))
+
+        # -----------------------------
+        # EMAIL (ParkingMyCar non la fornisce sempre)
+        # -----------------------------
+        customer_email = row.get("Email") or None
+
+        # -----------------------------
+        # TELEFONO (non presente nel file → None)
+        # -----------------------------
+        customer_phone = None
+
+        # -----------------------------
+        # TARGA (estratta da "Dettagli Veicolo")
+        # -----------------------------
+        license_plate = ParkingMyCarImporter.extract_license_plate(
+            row.get("Dettagli Veicolo")
         )
-        customer_email = row.get("email")
-        customer_phone = row.get("phone") or row.get("telefono")
+        license_plate = normalize_license_plate(license_plate)
 
-        license_plate = normalize_license_plate(
-            row.get("license_plate") or row.get("Targa") or ""
-        )
+        # -----------------------------
+        # DATE
+        # -----------------------------
+        arrival = parse_date(row.get("Check-in"))
+        departure = parse_date(row.get("Check-out"))
 
-        arrival = parse_date(row.get("check_in") or row.get("Ingresso"))
-        departure = parse_date(row.get("check_out") or row.get("Uscita"))
+        # -----------------------------
+        # PASSEGGERI (ParkingMyCar non lo fornisce → default 1)
+        # -----------------------------
+        passenger_count = 1
 
-        try:
-            passenger_count = int(row.get("passengers") or row.get("Passeggeri") or 1)
-        except:
-            passenger_count = 1
-
-        base_price_raw = (
-            row.get("amount_paid_online")
-            or row.get("paid_online")
-            or row.get("price")
-            or row.get("importo")
-        )
+        # -----------------------------
+        # PREZZI
+        # -----------------------------
+        base_price_raw = row.get("Importo pagato online") or row.get("Tariffario")
 
         try:
             base_price = float(str(base_price_raw).replace("€", "").replace(",", "."))
@@ -45,18 +77,35 @@ class ParkingMyCarImporter:
         pricing_breakdown = None
         pricing_reasoning = "dynamic pricing not applied"
 
-        service_description = row.get("service") or ""
+        # -----------------------------
+        # TIPO SERVIZIO
+        # -----------------------------
+        service_description = row.get("Tariffario") or ""
         parking_area = detect_service_type(service_description)
 
-        status_raw = str(row.get("status") or "").lower()
-        status = "cancelled" if "cancel" in status_raw or "annull" in status_raw else "active"
+        # -----------------------------
+        # STATO
+        # -----------------------------
+        stato_raw = str(row.get("Stato") or "").lower()
 
+        if "approv" in stato_raw:
+            status = "active"
+        elif "annull" in stato_raw or "cancel" in stato_raw:
+            status = "cancelled"
+        else:
+            status = "active"
+
+        # -----------------------------
+        # CREAZIONE BOOKING
+        # -----------------------------
         booking = Booking(
             portal=Portal.parkingmycar.value,
-            code=row.get("Codice") or row.get("code"),
+            code=row.get("ID"),
+
             customer_name=customer_name,
             customer_email=customer_email,
             customer_phone=customer_phone,
+
             license_plate=license_plate,
 
             arrival=arrival,
